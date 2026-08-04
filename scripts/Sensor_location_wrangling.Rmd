@@ -1,0 +1,177 @@
+---
+title: "sensor_location"
+output: html_document
+date: "2026-08-04"
+---
+
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+
+## Data Exploration
+
+```{r}
+sensor_raw <- read_csv(
+  "data/raw/pedestrian-counting-system-sensor-locations.csv",
+  show_col_types = FALSE
+) |>
+  clean_names()
+
+glimpse(sensor_raw)
+```
+```{r}
+head(sensor_raw)
+```
+
+```{r}
+dim(sensor_raw)
+names(sensor_raw)
+```
+
+```{r}
+colSums(is.na(sensor_raw))
+```
+
+
+
+```{r}
+sensor_raw %>%
+    filter(
+        is.na(direction_1) |
+        is.na(direction_2)
+    )
+```
+
+#### Observation:
+The 34 missing values in direction_1 and direction_2 are all associated with active indoor sensors, indicating that directional information is not applicable for these sensors rather than being missing due to errors.
+
+```{r}
+sensor_raw %>%
+    count(location_id) %>%
+    filter(n > 1)
+```
+
+#### The `location_id` field was checked for duplicate values. No duplicated `location_id` was found, indicating that each sensor location is uniquely identified. Therefore, `location_id` can be used as the primary key for joining with other pedestrian datasets.
+
+
+```{r}
+sensor_raw %>%
+  count(status)
+```
+#### all sensors in the dataset were already active, no records will be removed.
+
+```{r}
+sensor_raw %>%
+  count(location_type)
+
+sensor_raw %>%
+  count(direction_1)
+
+sensor_raw %>%
+  count(direction_2)
+```
+
+### Data Quality Summary
+The dataset contains 134 sensor locations and 12 attributes.
+No missing values were found in the key attributes (location_id, sensor_name, latitude, longitude, and status).
+The location_id field is unique and can be used as the primary key.
+Missing values in the direction fields are expected for indoor sensors and do not indicate data quality issues.
+Overall, the dataset is complete and suitable for further data cleaning and integration with other pedestrian datasets.
+
+
+
+## Data Wrangling
+
+### Select required columns
+```{r}
+sensor_selected <- sensor_raw %>%
+  select(
+    location_id,
+    sensor_description,
+    latitude,
+    longitude,
+    direction_1,
+    direction_2,
+    status
+  )
+
+glimpse(sensor_selected)
+```
+```{r}
+head(sensor_selected)
+```
+
+#### Only the attributes required for the MVP were retained: sensor ID, human-readable location description, coordinates, pedestrian directions, and sensor status. Unnecessary technical and historical fields were excluded.
+
+## Export
+
+```{r}
+write_csv(
+  sensor_selected,
+  "data/processed/sensor_locations_clean.csv"
+)
+```
+#### Export cleaned dataset:
+The cleaned sensor locations dataset was exported as sensor_locations_clean.csv and stored in the data/processed/ directory. This dataset will be used for integration with other pedestrian datasets and the map visualisation component of the MVP.
+
+
+## Validation
+```{r}
+sensor_check <- read_csv(
+  "data/processed/sensor_locations_clean.csv",
+  show_col_types = FALSE
+)
+
+glimpse(sensor_check)
+```
+```{r}
+colSums(is.na(sensor_check))
+```
+
+```{r}
+sensor_check %>%
+  count(location_id) %>%
+  filter(n > 1)
+```
+### Final Summary
+
+The Sensor Locations dataset was successfully cleaned and prepared for integration with other project datasets. Only the attributes required for the MVP were retained. The cleaned dataset contains 134 active sensor locations and 7 attributes, with no missing values in the key fields (location_id, sensor_description, latitude, longitude, and status). The cleaned dataset is ready for use in map visualisation and data integration.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
