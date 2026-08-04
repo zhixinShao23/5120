@@ -1,0 +1,161 @@
+---
+title: "Past hour data"
+output: html_document
+date: "2026-08-04"
+---
+
+
+```{r}
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+
+## Exploration
+
+### Overview
+```{r}
+hourly_raw <- read_csv(
+  "data/raw/pedestrian-counting-system-monthly-counts-per-hour.csv",
+  show_col_types = FALSE
+) |>
+  clean_names()
+```
+
+```{r}
+dim(hourly_raw)
+names(hourly_raw)
+glimpse(hourly_raw)
+head(hourly_raw)
+```
+
+
+```{r}
+hourly_raw %>%
+  summarise(
+    earliest = min(sensing_date),
+    latest = max(sensing_date)
+  )
+```
+```{r}
+hourly_raw |>
+  mutate(
+    year = year(sensing_date)
+  ) |>
+  count(year)
+```
+#### Observation:
+The dataset covers pedestrian counts from 2024 to 2026. Most records were collected during 2025, while 2024 and 2026 contain fewer records because they represent partial years.
+
+```{r}
+hourly_raw |>
+  summarise(
+    unique_sensors = n_distinct(location_id)
+  )
+```
+
+#### Observation:
+The dataset contains data from 103 unique pedestrian sensors, indicating that hourly pedestrian counts were collected across multiple monitoring locations within Melbourne.
+
+
+```{r}
+summary(hourly_raw$total_of_directions)
+```
+#### Observation:
+Hourly pedestrian counts range from 0 to 11,113, with a median of 161 and a mean of 393.9. The mean is substantially higher than the median, indicating a right-skewed distribution where a small number of observations have exceptionally high pedestrian counts.
+
+
+#### Dataset Overview:
+The Pedestrian Counting System (Counts per Hour) dataset contains 1,613,233 records and 9 attributes, covering the period from 4 August 2024 to 3 August 2026. Each record represents the pedestrian count recorded at a specific sensor location during a particular hour. The dataset will be used as the historical pedestrian count dataset for the project.
+
+
+## Missing checking
+```{r}
+colSums(is.na(hourly_raw))
+```
+#### Observation:
+No missing values were found in the key attributes (location_id, sensing_date, hour_day, direction_1, direction_2, and total_of_directions). Missing values only occur in sensor_name and location, with 25,593 records each. These attributes are not essential for the MVP because sensor descriptions and coordinates are already available in the cleaned Sensor Locations dataset.
+
+
+```{r}
+hourly_raw |>
+  count(location_id, sensing_date, hour_day) |>
+  filter(n > 1)
+```
+#### Observation:
+No duplicate records were found based on the combination of location_id, sensing_date, and hour_day. This confirms that each sensor has only one hourly pedestrian count record for a given date and hour.
+
+
+## Exploration Summary:
+The dataset contains 1,613,233 hourly pedestrian count records collected from 103 pedestrian sensors between August 2024 and August 2026. No missing values or duplicate records were found in the key attributes required for analysis. Missing values are limited to sensor_name and location, which are not required for the MVP. Overall, the dataset is complete and suitable for further data cleaning and analysis.
+
+
+
+## Data Wrangling
+### Data Wrangling Strategy
+To support the MVP, the hourly pedestrian count dataset will be transformed into a historical baseline rather than retaining all raw records. First, the dataset will be filtered to a complete one-year period (August 2025 – July 2026). Temporal features, including weekday, weekend, and public holiday, will then be derived from the date. Finally, the data will be grouped by sensor location, day type, and hour to calculate the average pedestrian count. This processed dataset will provide a meaningful historical reference for the application's real-time pedestrian density visualisation and route recommendation features.
+
+
+#### Step 1: Filter a complete one-year period
+To establish a consistent historical baseline, the dataset was restricted to a complete 12-month period from 1 August 2025 to 31 July 2026. This avoids using partial years while preserving seasonal variations in pedestrian activity.
+
+```{r}
+# Select the time period
+hourly_1year <- hourly_raw |>
+  filter(
+    sensing_date >= as.Date("2025-08-01"),
+    sensing_date <= as.Date("2026-07-31")
+  )
+```
+
+```{r}
+hourly_1year |>
+  summarise(
+    earliest = min(sensing_date),
+    latest = max(sensing_date),
+    records = n()
+  )
+```
+
+#### Step 2：Create new time attributes(Weekday、Weekend、Public Holiday)
+```{r}
+hourly_time <- hourly_1year |>
+  mutate(
+    weekday = wday(sensing_date, label = TRUE, abbr = FALSE,locale = "English"),
+    is_weekend = weekday %in% c("Saturday", "Sunday")
+  )
+```
+
+
+```{r}
+hourly_time |>
+  select(sensing_date, weekday, is_weekend) |>
+  head(5)
+```
+
+```{r}
+hourly_time |>
+  count(weekday)
+```
+
+```{r}
+hourly_time |>
+  count(is_weekend)
+```
+
+#### Observation:
+The weekend indicator was successfully created. Of the 825,104 records, 588,525 were recorded on weekdays and 236,579 on weekends.
+
+
+
+
+
+
+
+
+
+
+
+
+
