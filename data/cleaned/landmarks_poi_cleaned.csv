@@ -1,0 +1,243 @@
+poi_id,feature_name,theme,sub_theme,project_category,project_relevance,include_in_mvp,latitude,longitude,valid_coordinate,duplicate_name_flag
+POI0236,Alfred Hospital,Health Services,Public Hospital,health_service,high,True,-37.8462631206461,144.981786260765,True,False
+POI0083,Epworth Freemasons Hospital,Health Services,Private Hospital,health_service,high,True,-37.8109710654051,144.98370007659,True,False
+POI0219,Epworth Freemasons Hospital : Medical Centre,Health Services,Private Hospital,health_service,high,True,-37.8093444587231,144.982336768182,True,False
+POI0188,Melbourne Private Hospital,Health Services,Private Hospital,health_service,high,True,-37.7983111309698,144.95728837725,True,False
+POI0010,Mercy Private Hospital,Health Services,Medical Services,health_service,high,True,-37.811896809802,144.984435746587,True,False
+POI0032,Peter Maccallum Cancer Institute,Health Services,Public Hospital,health_service,high,True,-37.8114766732026,144.977400949063,True,False
+POI0029,Royal Childrens Hospital,Health Services,Public Hospital,health_service,high,True,-37.7942060847278,144.950048264678,True,False
+POI0240,Royal Dental Hospital,Health Services,Public Hospital,health_service,high,True,-37.7995065904416,144.964526842767,True,False
+POI0180,Royal Melbourne Hospital,Health Services,Public Hospital,health_service,high,True,-37.7993071664096,144.956389746765,True,False
+POI0019,Royal Womens Hospital,Health Services,Public Hospital,health_service,high,True,-37.7988892460088,144.954897253856,True,False
+POI0056,The Royal Victorian Eye & Ear Hospital,Health Services,Public Hospital,health_service,high,True,-37.8087522829868,144.976268275082,True,False
+POI0156,Alexandra Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8206051404251,144.971796067365,True,False
+POI0007,Argyle Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8031480577285,144.965761295089,True,False
+POI0191,Batman Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8218460949601,144.956665812218,True,False
+POI0131,Birrarung Marr,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.81806108403,144.97314667014,True,False
+POI0172,Carlton Gardens North,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8017690847403,144.971997551189,True,False
+POI0185,Carlton Gardens South,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8060684577258,144.971266479841,True,False
+POI0063,Darling Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.81299206932,144.989062559512,True,False
+POI0152,Docklands Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8209956785618,144.946781702342,True,False
+POI0179,Enterprize Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.820210269629,144.959276859602,True,False
+POI0177,Fawkner Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8413996708186,144.981625667877,True,False
+POI0018,Federation Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8178516571684,144.968963600783,True,False
+POI0031,Fitzroy Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8129616331579,144.980455714669,True,False
+POI0022,Flagstaff Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8111222889277,144.954696055235,True,False
+POI0028,J.J Holland Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7982358832177,144.923837074813,True,False
+POI0013,Kings Domain,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8255239795833,144.974107925144,True,False
+POI0212,Lincoln Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8027919689732,144.962760852233,True,False
+POI0076,Macarthur Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7983318676737,144.971514146104,True,False
+POI0161,Melbourne Showgrounds,Leisure/Recreation,"Outdoor Recreation Facility (Zoo, Golf Course)",park_and_open_space,high,True,-37.7823097850883,144.910822117306,True,False
+POI0149,Melbourne Zoo,Leisure/Recreation,"Outdoor Recreation Facility (Zoo, Golf Course)",park_and_open_space,high,True,-37.7844449253712,144.951371205938,True,False
+POI0166,Murchinson Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8002735025371,144.973059252203,True,False
+POI0109,New Quay,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8152178789077,144.941617889032,True,False
+POI0027,Newmarket Reserve,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7878473341234,144.922972125346,True,False
+POI0003,North Melbourne Recreation Reserve,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7988345257153,144.941452061463,True,False
+POI0068,Parliament Reserve,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.809852620638,144.973462202839,True,False
+POI0165,Piazza Italia,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8025164192523,144.965863092947,True,False
+POI0154,Point Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8233522700646,144.942102276731,True,False
+POI0225,Powlett Reserve,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8116929882498,144.987275671763,True,False
+POI0004,Princes Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7870161727156,144.961115214367,True,False
+POI0108,Queen Victoria Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8216381244891,144.971049530478,True,False
+POI0043,Richmond Football Club,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8216740022008,144.988156318781,True,False
+POI0030,Riverside Park,Leisure/Recreation,"Outdoor Recreation Facility (Zoo, Golf Course)",park_and_open_space,high,True,-37.7948375315825,144.915607065132,True,False
+POI0201,Riverslide Skate Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8207887122448,144.972951789291,True,False
+POI0061,Royal Botanic Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8306631583233,144.980850432751,True,False
+POI0202,Royal Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.7906174256581,144.953834240647,True,False
+POI0124,Sandridge Rail Bridge,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8201763042794,144.96298113724,True,False
+POI0091,Shrine of Rembrance Reserve,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8320733992876,144.973628364465,True,False
+POI0101,Treasury Gardens,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8143993575938,144.975952335785,True,False
+POI0143,University Square,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.800410711209,144.960398319302,True,False
+POI0024,Westgate Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.8314918578874,144.908824792698,True,False
+POI0175,Wonderland Park,Leisure/Recreation,"Outdoor Recreation Facility (Zoo, Golf Course)",park_and_open_space,high,True,-37.8116945351989,144.936833674975,True,False
+POI0204,Yarra Park,Leisure/Recreation,Informal Outdoor Facility (Park/Garden/Reserve),park_and_open_space,high,True,-37.820469374101,144.986671109615,True,False
+POI0026,Flagstaff Railway Station,Transport,Railway Station,transport_station,high,True,-37.8122356514626,144.956318211113,True,True
+POI0120,Flagstaff Railway Station,Transport,Railway Station,transport_station,high,True,-37.8116384403974,144.9561186805,True,True
+POI0183,Flemington Bridge Railway Station,Transport,Railway Station,transport_station,high,True,-37.7881645889621,144.939277838304,True,False
+POI0094,Flemington Racecourse Railway Station,Transport,Railway Station,transport_station,high,True,-37.7869105822519,144.908190706069,True,False
+POI0123,Flinders Street Railway Station,Transport,Railway Station,transport_station,high,True,-37.8179063007545,144.967064817875,True,False
+POI0157,Jolimont-MCG Railway Station (East Melbourne) - Train stop,Transport,Railway Station,transport_station,high,True,-37.8165651811668,144.983641003377,True,False
+POI0060,Kensington Railway Station,Transport,Railway Station,transport_station,high,True,-37.7939140126373,144.930710207518,True,False
+POI0059,Macaulay Railway Station (North Melbourne) - Train stop,Transport,Railway Station,transport_station,high,True,-37.794964001386,144.936190756632,True,False
+POI0006,Melbourne Central Railway Station,Transport,Railway Station,transport_station,high,True,-37.8100167030855,144.963789344893,True,True
+POI0205,Melbourne Central Railway Station,Transport,Railway Station,transport_station,high,True,-37.8097759325888,144.962670059539,True,True
+POI0220,Melbourne Central Railway Station,Transport,Railway Station,transport_station,high,True,-37.8105992402369,144.96169061383,True,True
+POI0221,Melbourne Central Railway Station,Transport,Railway Station,transport_station,high,True,-37.8108930047401,144.963100728702,True,True
+POI0159,Newmarket Railway Station,Transport,Railway Station,transport_station,high,True,-37.7872726241965,144.929059958114,True,False
+POI0077,North Melbourne Railway Station,Transport,Railway Station,transport_station,high,True,-37.8073823625058,144.942429848025,True,False
+POI0002,Parliament Railway Station,Transport,Railway Station,transport_station,high,True,-37.8116061787171,144.973017263156,True,True
+POI0093,Parliament Railway Station,Transport,Railway Station,transport_station,high,True,-37.8127621113552,144.973433796529,True,True
+POI0133,Parliament Railway Station,Transport,Railway Station,transport_station,high,True,-37.8095762219384,144.972330132127,True,True
+POI0234,Parliament Railway Station,Transport,Railway Station,transport_station,high,True,-37.8121572789173,144.973742010011,True,True
+POI0217,Port of Melbourne,Transport,Transport Terminal,transport_station,high,True,-37.8137384362671,144.91753432375,True,False
+POI0232,Richmond Railway Station (Richmond) - Train stop,Transport,Railway Station,transport_station,high,True,-37.8238992659834,144.989400751664,True,False
+POI0119,Royal Park Railway Station,Transport,Railway Station,transport_station,high,True,-37.7812684282825,144.951667833921,True,False
+POI0235,Showgrounds Railway Station (Flemington),Transport,Railway Station,transport_station,high,True,-37.7834651216244,144.914902626775,True,False
+POI0020,South Kensington Railway Station,Transport,Railway Station,transport_station,high,True,-37.7997270537735,144.925837749713,True,False
+POI0146,Southern Cross Railway Station,Transport,Railway Station,transport_station,high,True,-37.8181633057171,144.952944748845,True,False
+POI0049,ANZ 'Gothic' Bank,Mixed Use,Retail/Office/Carpark,other,low,False,-37.8161580666029,144.961673719242,True,False
+POI0126,All Nations Uniting Church,Place of Worship,Church,other,low,False,-37.7959155303946,144.968981110942,True,False
+POI0230,Australian Broadcasting Corporation (ABC),Office,Office,other,low,False,-37.823813323734,144.966551401578,True,False
+POI0192,Australian Red Cross,Office,Office,other,low,False,-37.7990921023192,144.952635945774,True,False
+POI0213,Bishopscourt,Residential Accommodation,Dwelling (House),other,low,False,-37.8132921649416,144.98350690799,True,False
+POI0110,Central City Studios,Purpose Built,Film & RV Studio,other,low,False,-37.8142318521296,144.935655305362,True,False
+POI0197,Channel 7 - Melbourne Broadcast Centre,Purpose Built,Film & RV Studio,other,low,False,-37.8158572333481,144.94582326909,True,False
+POI0187,Christ Church Kensington,Place of Worship,Church,other,low,False,-37.7932109480553,144.92729572288,True,False
+POI0084,Church of Christ,Place of Worship,Church,other,low,False,-37.8104524079085,144.96388920294,True,False
+POI0222,Collins Street Baptist Church,Place of Worship,Church,other,low,False,-37.8147011904647,144.968072486031,True,False
+POI0062,Coronial Services Centre of Victoria,Office,Office,other,low,False,-37.8243437355246,144.96447462898,True,False
+POI0184,Council House 2 (CH2),Mixed Use,Retail/Office/Carpark,other,low,False,-37.8142591432011,144.966638432727,True,False
+POI0046,Crown Entertainment Complex,Purpose Built,Casino,other,low,False,-37.8235761092516,144.957312880653,True,False
+POI0195,DFO South Wharf,Mixed Use,Retail/Office,other,low,False,-37.824887401234,144.949794297819,True,False
+POI0242,David Jones,Retail,Department Store,other,low,False,-37.8133127260638,144.964373486798,True,False
+POI0005,Donor Tissue Bank of Victoria,Office,Office,other,low,False,-37.8248231859563,144.965169035668,True,False
+POI0099,East Melbourne Synagogue,Place of Worship,Synagogue,other,low,False,-37.809113728917,144.97422190954,True,False
+POI0081,Eureka Skydeck 88,Leisure/Recreation,Observation Tower/Wheel,other,low,False,-37.8216187583314,144.964622218598,True,False
+POI0137,Eureka Tower,Mixed Use,Retail/Residential,other,low,False,-37.8215157539717,144.964456721965,True,False
+POI0107,Former Royal Mint,Office,Office,other,low,False,-37.8121838748712,144.957055454136,True,False
+POI0072,Freshwater Place,Mixed Use,Retail/Office/Residential/Carpark,other,low,False,-37.8219745489446,144.96246144843,True,False
+POI0203,Government House,Residential Accommodation,Dwelling (House),other,low,False,-37.8275635886174,144.976655130464,True,False
+POI0170,Greek Orthodox Church,Place of Worship,Church,other,low,False,-37.8088064667555,144.978259089269,True,False
+POI0129,Harbour Town,Vacant Land,Current Construction Site,other,low,False,-37.8139256326845,144.938123825625,True,False
+POI0086,Holy Rosary,Place of Worship,Church,other,low,False,-37.7948087414394,144.928362125005,True,False
+POI0085,Holy Trinity,Place of Worship,Church,other,low,False,-37.8140667110854,144.983197322289,True,False
+POI0162,Kraft,Industrial,Industrial (Manufacturing),other,low,False,-37.8262313085528,144.923475698195,True,False
+POI0139,Lutheran Trinity Church,Place of Worship,Church,other,low,False,-37.8109757054396,144.975729473552,True,False
+POI0167,Melbourne Aquarium,Purpose Built,Aquarium,other,low,False,-37.8209627824685,144.958425696055,True,False
+POI0164,Melbourne Central,Mixed Use,Retail/Office/Carpark,other,low,False,-37.8105371797142,144.962749729496,True,False
+POI0144,Melbourne General Cemetery,Community Use,Cemetery,other,low,False,-37.7891890023616,144.965785979892,True,False
+POI0104,Melbourne International Karting Complex,Vacant Land,Vacant Land - Undeveloped Site,other,low,False,-37.8310746380616,144.913822928701,True,False
+POI0102,Melbourne Magistrates Court,Community Use,Government Building,other,low,False,-37.8136147671606,144.956846193891,True,False
+POI0130,Melbourne Star Observation Wheel,Leisure/Recreation,Observation Tower/Wheel,other,low,False,-37.8116163666726,144.937588920436,True,False
+POI0051,Melbourne Unitarian Church,Place of Worship,Church,other,low,False,-37.8114487773394,144.984664890999,True,False
+POI0064,Melbourne Wholesale Fish Market,Warehouse/Store,Store Yard,other,low,False,-37.8083471006041,144.930613255612,True,False
+POI0163,"Melbourne Wholesale Fruit, Vegetable & Flower Market",Mixed Use,Retail/Office/Carpark,other,low,False,-37.80687252157,144.923287444259,True,False
+POI0168,Myer,Retail,Department Store,other,low,False,-37.8135911985281,144.963855087868,True,False
+POI0111,New Quay Marina,Transport,Marina,other,low,False,-37.8152925454954,144.942283726231,True,False
+POI0069,North Melbourne Football Club,Office,Office,other,low,False,-37.799771364073,144.940963510723,True,False
+POI0070,North Melbourne Recreation Centre (Gymnasium),Leisure/Recreation,Gymnasium/Health Club,other,low,False,-37.7997051197931,144.940368286395,True,False
+POI0171,North Melbourne Uniting,Place of Worship,Church,other,low,False,-37.8035538471344,144.947671538375,True,False
+POI0041,Old Treasury Building,Office,Office,other,low,False,-37.8132371662585,144.974423610255,True,False
+POI0052,Our Lady of Lebanon Church,Place of Worship,Church,other,low,False,-37.8025766539683,144.969334720932,True,False
+POI0106,Parliament House,Office,Office,other,low,False,-37.811246655376,144.97372641185,True,False
+POI0067,QV Village,Mixed Use,Retail/Office/Residential/Carpark,other,low,False,-37.8106891897454,144.965714574014,True,False
+POI0038,Queen Victoria Market,Retail,Retail,other,low,False,-37.8075002018073,144.957158515056,True,False
+POI0001,Railway Good Shed No 2,Vacant Land,Current Construction Site - Commercial,other,low,False,-37.8211371302179,144.951378883631,True,False
+POI0034,Romanian Orthodox,Place of Worship,Church,other,low,False,-37.8052307297468,144.966986444597,True,False
+POI0017,SBS (Special Broadcasting Service),Office,Office,other,low,False,-37.8176921210305,144.968740597156,True,False
+POI0215,Scots Church,Place of Worship,Church,other,low,False,-37.8145687802664,144.96855105335,True,False
+POI0216,South Yarra Presbyterian Church,Place of Worship,Church,other,low,False,-37.8407473645397,144.98562699348,True,False
+POI0015,Southgate Arts and Leisure Precinct,Mixed Use,Retail/Office/Carpark,other,low,False,-37.8202245786597,144.965989052839,True,False
+POI0053,St Alban Anglican Church,Place of Worship,Church,other,low,False,-37.7942169477929,144.94161451392,True,False
+POI0050,St Augustines Church,Place of Worship,Church,other,low,False,-37.8169741358546,144.954862000132,True,False
+POI0169,St Francis Church,Place of Worship,Church,other,low,False,-37.8118847831837,144.962422614541,True,False
+POI0097,St James Church,Place of Worship,Church,other,low,False,-37.8101281201969,144.952468571683,True,False
+POI0140,St Johns Lutheran Church,Place of Worship,Church,other,low,False,-37.8209399677168,144.967121099857,True,False
+POI0025,St Mary's Anglican Church,Place of Worship,Church,other,low,False,-37.8031663672997,144.953761537074,True,False
+POI0098,St Michael's Uniting Church,Place of Worship,Church,other,low,False,-37.8143851324913,144.969174036096,True,False
+POI0035,St Michaels,Place of Worship,Church,other,low,False,-37.7940512679297,144.945399480629,True,False
+POI0105,St Patricks Cathedral,Place of Worship,Church,other,low,False,-37.8101140950474,144.975901529712,True,False
+POI0207,St Pauls Cathedral,Place of Worship,Church,other,low,False,-37.8169549012399,144.967681647402,True,False
+POI0214,St Peter's Eastern Hill,Place of Worship,Church,other,low,False,-37.8097086714637,144.975259178609,True,False
+POI0223,St Thomas Aquinas Church,Place of Worship,Church,other,low,False,-37.8353076902578,144.976809080472,True,False
+POI0176,State Coroners Office,Office,Office,other,low,False,-37.8244982228756,144.964675254819,True,False
+POI0174,The Mission To Seafarers Victoria,Specialist Residential Accommodation,Hostel,other,low,False,-37.8224995970811,144.951254841448,True,False
+POI0037,The Parish of Christ Church South Yarra,Place of Worship,Church,other,low,False,-37.8386270533576,144.986009385387,True,False
+POI0173,Treasury Reserve,Mixed Use,Retail/Office,other,low,False,-37.8129178793082,144.975236759799,True,False
+POI0036,Ukranian Catholic Cathedral,Place of Worship,Church,other,low,False,-37.7963084580345,144.944313454028,True,False
+POI0233,Victorian Insitute of Forensic Medicine,Office,Office,other,low,False,-37.8246924089335,144.964979061564,True,False
+POI0153,Waterfront City,Mixed Use,Retail/Office,other,low,False,-37.815056661803,144.939136876334,True,False
+POI0241,Webb Bridge,Transport,Bridge,other,low,False,-37.8232052384507,144.947291011905,True,False
+POI0138,Welsh Presbyterian Church,Place of Worship,Church,other,low,False,-37.8104478768313,144.959873260087,True,False
+POI0186,Wesley Church,Place of Worship,Church,other,low,False,-37.8101576446961,144.968168215633,True,False
+POI0121,Athanaeum Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.814954347831,144.96732254212,True,False
+POI0209,Australian Centre For The Moving Image (ACMI),Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8176107327202,144.969070431323,True,False
+POI0016,Australian Centre for Contemporary Art,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8266045432686,144.967252924593,True,False
+POI0160,Carlton Courthouse Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.7976589943217,144.968750113566,True,False
+POI0237,Comedy Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8102053945163,144.97013311862,True,False
+POI0078,Cooks' Cottage,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8144604899837,144.979471339826,True,False
+POI0218,FairFax Studio,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8216684581887,144.968836241692,True,False
+POI0135,Fire Services Museum Victoria,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8085761281612,144.975373745366,True,False
+POI0239,Forum Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.816485409696,144.969386556998,True,False
+POI0048,Fox Classic Car Collection,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8213744301481,144.948496661709,True,False
+POI0118,Hamer Hall,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8199901009015,144.967992144257,True,False
+POI0122,Her Majesty's Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8109975612842,144.969520183129,True,False
+POI0231,IMAX Melbourne,Place Of Assembly,Cinema,arts_and_culture,medium,True,-37.8034315561903,144.970639929886,True,False
+POI0134,Immigration Museum,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8191798798062,144.960426777129,True,False
+POI0074,Koorie Heritage Trust Inc,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8133854259085,144.954027907736,True,False
+POI0238,La Mama Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.7991304956733,144.967669503083,True,False
+POI0090,MTC Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8242661832902,144.968174400274,True,False
+POI0150,Malthouse Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8271768001126,144.966936821789,True,False
+POI0115,Melbourne Museum,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8035518129299,144.971690718887,True,False
+POI0021,National Sports Museum,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8189544909462,144.984669809381,True,False
+POI0088,Old Melbourne Gaol Crime & Justice Experience,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8077644149636,144.965463853978,True,False
+POI0054,Playhouse,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8218124583016,144.968337832721,True,False
+POI0193,Polly Woodside,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8242574266145,144.953478052064,True,False
+POI0147,Princess Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8107257091302,144.9723265962,True,False
+POI0040,Regent Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8160014744179,144.967916735261,True,False
+POI0079,Royal Exhibition Building,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.80460262432,144.971521914952,True,False
+POI0210,Sinclair's Cottage,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8145407488014,144.980554992725,True,False
+POI0229,St Martins Youth Arts Centre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8352429531289,144.98114217385,True,False
+POI0227,State Theatre,Place Of Assembly,Theatre Live,arts_and_culture,medium,True,-37.8212806349773,144.968469643744,True,False
+POI0196,The Ian Potter Centre: NGV Australia,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8174831423197,144.969899048343,True,False
+POI0065,The Ian Potter Museum Of Art,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.7973939595503,144.964156669702,True,False
+POI0125,The Museum Of Australian Chinese History,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8107686127655,144.96923385414,True,False
+POI0151,Thoroughbred Racing Gallery,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8188662730911,144.9839700954,True,False
+POI0206,Victoria Police Museum,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8222182774409,144.954039975197,True,False
+POI0055,Victorian Arts Centre,Place Of Assembly,Art Gallery/Museum,arts_and_culture,medium,True,-37.8219947335768,144.968837288153,True,False
+POI0057,Central Pier,Place Of Assembly,Function/Conference/Exhibition Centre,assembly_and_events,medium,True,-37.8165177307702,144.943475014215,True,False
+POI0096,Dallas Brooks Centre,Place Of Assembly,Function/Conference/Exhibition Centre,assembly_and_events,medium,True,-37.8097374138234,144.981383411592,True,False
+POI0044,Melbourne Convention Centre,Place Of Assembly,Function/Conference/Exhibition Centre,assembly_and_events,medium,True,-37.8249040484653,144.952288281644,True,False
+POI0089,Melbourne Exhibition Centre,Place Of Assembly,Function/Conference/Exhibition Centre,assembly_and_events,medium,True,-37.8252455123297,144.95435243249,True,False
+POI0178,BIO 21 Institute,Education Centre,Tertiary (University),education,medium,True,-37.7978743305343,144.953780325865,True,False
+POI0012,Carlton Gardens Primary School,Education Centre,Primary Schools,education,medium,True,-37.8020953835112,144.969406272035,True,False
+POI0226,Carlton Primary School,Education Centre,Primary Schools,education,medium,True,-37.7959079757171,144.970147317976,True,False
+POI0199,Kangan Batman Tafe,Education Centre,Further Education,education,medium,True,-37.8221818203024,144.948908460665,True,False
+POI0047,Kensington Primary School,Education Centre,Primary Schools,education,medium,True,-37.7925235045455,144.927108735461,True,False
+POI0009,Melbourne Girls Grammar School,Education Centre,School - Primary and Secondary Education,education,medium,True,-37.8315364518803,144.985089428348,True,False
+POI0014,Melbourne Grammar School,Education Centre,Secondary Schools,education,medium,True,-37.8342561018747,144.976285045233,True,False
+POI0023,North Melbourne Primary School,Education Centre,Primary Schools,education,medium,True,-37.7986737155551,144.951065772876,True,False
+POI0075,RMIT University,Education Centre,Tertiary (University),education,medium,True,-37.8080795360545,144.964452974798,True,False
+POI0148,University High School,Education Centre,Secondary Schools,education,medium,True,-37.7973136216903,144.956034449946,True,False
+POI0066,University of Melbourne,Education Centre,Tertiary (University),education,medium,True,-37.7982892284927,144.96099520158,True,False
+POI0228,University of Melbourne (VCA and Music),Education Centre,Tertiary (University),education,medium,True,-37.8241137662047,144.96933253996,True,False
+POI0145,Wesley College,Education Centre,School - Primary and Secondary Education,education,medium,True,-37.8485201804496,144.982227770988,True,False
+POI0181,Commonwealth Law Courts,Community Use,Public Buildings,public_service,medium,True,-37.8123961677596,144.955823833257,True,False
+POI0071,Conservatory,Community Use,Public Buildings,public_service,medium,True,-37.814002127195,144.9785597431,True,False
+POI0082,County Court Melbourne,Community Use,Public Buildings,public_service,medium,True,-37.8132011619962,144.957734246387,True,False
+POI0116,Elisabeth Murdoch Hall,Community Use,Public Buildings,public_service,medium,True,-37.8239733704282,144.967450979234,True,False
+POI0080,Melbourne Childrens Court,Community Use,Public Buildings,public_service,medium,True,-37.8125077646598,144.958298873269,True,False
+POI0117,Melbourne Recital Centre,Community Use,Public Buildings,public_service,medium,True,-37.8238327885805,144.967682729667,True,False
+POI0155,Melbourne Theatre Company,Community Use,Public Buildings,public_service,medium,True,-37.823930384816,144.968297429894,True,False
+POI0194,Melbourne Town Hall,Community Use,Public Buildings,public_service,medium,True,-37.8150754791411,144.966542722283,True,False
+POI0224,Melbourne Visitor Booth,Community Use,Visitor Centre,public_service,medium,True,-37.8139525061193,144.964425882562,True,False
+POI0208,Melbourne Visitor Centre,Community Use,Visitor Centre,public_service,medium,True,-37.8177352402006,144.967937138226,True,False
+POI0073,Metropolitan Fire Brigade (MFB),Community Use,Fire Station,public_service,medium,True,-37.8092318636838,144.975247619376,True,False
+POI0058,NGV International,Community Use,Public Buildings,public_service,medium,True,-37.8230135000869,144.969342535451,True,False
+POI0158,Shrine of Remembrance,Community Use,Public Buildings,public_service,medium,True,-37.8302080020387,144.973441913623,True,False
+POI0128,Sidney Myer Music Bowl,Community Use,Public Buildings,public_service,medium,True,-37.8233471608733,144.974686151365,True,False
+POI0039,State Library Victoria,Community Use,Public Buildings,public_service,medium,True,-37.8099852201226,144.964330322397,True,False
+POI0042,Supreme Court,Community Use,Public Buildings,public_service,medium,True,-37.8141494182814,144.957894024264,True,False
+POI0033,The Melbourne Athenaeum Library,Place Of Assembly,Library,public_service,medium,True,-37.8148855756416,144.967291289941,True,False
+POI0087,Victoria Police,Community Use,Police Station,public_service,medium,True,-37.8219773910249,144.953398014034,True,True
+POI0141,Victoria Police,Community Use,Police Station,public_service,medium,True,-37.8164849024046,144.966486801188,True,True
+POI0189,Victoria Police,Community Use,Police Station,public_service,medium,True,-37.8003121288849,144.954697453742,True,True
+POI0198,AAMI Park,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8247252673963,144.98380297866,True,False
+POI0132,Artplay,Leisure/Recreation,Indoor Recreation Facility,sports_and_recreation,medium,True,-37.8184198800044,144.971542586509,True,False
+POI0095,Carlton Baths,Leisure/Recreation,Indoor Recreation Facility,sports_and_recreation,medium,True,-37.7934377042609,144.971696548624,True,False
+POI0011,Carlton Football Club,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.7840864379557,144.961967841559,True,False
+POI0182,City Baths,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8071585350561,144.963189789721,True,False
+POI0211,Etihad Stadium,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8161760471742,144.947496254547,True,False
+POI0100,Flemington Racecourse,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.7908082646624,144.912142987372,True,False
+POI0114,Hisense Arena,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.823110002667,144.981834802535,True,False
+POI0092,Icehouse,Leisure/Recreation,Indoor Recreation Facility,sports_and_recreation,medium,True,-37.8121881194053,144.935684018873,True,False
+POI0200,Margaret Court Arena,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8213252086842,144.977591098955,True,False
+POI0103,Melbourne Cricket Ground (MCG),Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8194921618419,144.983402879078,True,False
+POI0045,Melbourne International Shooting Club,Leisure/Recreation,Private Sports Club/Facility,sports_and_recreation,medium,True,-37.8292844929826,144.913415802464,True,False
+POI0113,Melbourne Park,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8209085970021,144.978735802793,True,False
+POI0136,North Melbourne Recreation Centre (Aquatic),Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.7999470049655,144.943290801869,True,False
+POI0112,Rod Laver Arena,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8220456119807,144.978487173787,True,False
+POI0127,Royal Park Golf Course,Leisure/Recreation,Private Sports Club/Facility,sports_and_recreation,medium,True,-37.7819171308558,144.956309119368,True,False
+POI0142,State Netball Hockey Centre,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.7857860016289,144.947580972027,True,False
+POI0190,Visy Park,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.7834303940347,144.961982577553,True,False
+POI0008,Westpac Centre,Leisure/Recreation,Major Sports & Recreation Facility,sports_and_recreation,medium,True,-37.8242456858593,144.979720306309,True,False
