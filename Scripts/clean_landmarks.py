@@ -92,18 +92,6 @@ def classify_noise(sub_theme: object) -> str:
     return "review_required"
 
 
-def noise_reason(sub_theme: object, level: str) -> str:
-    if sub_theme in {"Public Hospital", "Private Hospital", "Medical Services"}:
-        return "Health facility; classified as low by the project team"
-    if level == "low":
-        return "Facility type is generally associated with quieter or controlled activity"
-    if level == "medium":
-        return "Facility type may generate regular visitors or intermittent activity"
-    if level == "high":
-        return "Facility type is associated with transport, events, commerce, machinery, or concentrated activity"
-    return "Sub-theme has no approved noise rule and requires review"
-
-
 def main() -> None:
     df = pd.read_csv(SOURCE, dtype="string")
     df.columns = [
@@ -131,10 +119,6 @@ def main() -> None:
     df["usable_as_map_marker"] = df["valid_coordinate"]
 
     df["noise_proxy_level"] = df["sub_theme"].map(classify_noise)
-    df["noise_proxy_reason"] = [
-        noise_reason(sub_theme, level)
-        for sub_theme, level in zip(df["sub_theme"], df["noise_proxy_level"])
-    ]
 
     df["duplicate_name_flag"] = df.duplicated("feature_name", keep=False)
     df.insert(0, "poi_id", [f"POI{i:04d}" for i in range(1, len(df) + 1)])
@@ -145,23 +129,24 @@ def main() -> None:
     invalid_coordinate_count = (~df["valid_coordinate"]).sum()
     duplicate_name_count = df["duplicate_name_flag"].sum()
 
-    df = df[
-        [
-            "poi_id",
-            "feature_name",
-            "theme",
-            "sub_theme",
-            "latitude",
-            "longitude",
-            "noise_proxy_level",
-            "noise_proxy_reason",
-        ]
-    ]
-
     source_subthemes = set(df["sub_theme"].dropna().unique())
     configured_subthemes = LOW | MEDIUM | HIGH
     missing_rules = sorted(source_subthemes - configured_subthemes)
     unused_rules = sorted(configured_subthemes - source_subthemes)
+
+    # The team-facing dataset contains only POIs classified as low noise.
+    df = df.loc[df["noise_proxy_level"].eq("low")].copy()
+
+    df = df[
+        [
+            "poi_id",
+            "feature_name",
+            "sub_theme",
+            "latitude",
+            "longitude",
+            "noise_proxy_level",
+        ]
+    ]
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUTPUT, index=False, encoding="utf-8-sig")
