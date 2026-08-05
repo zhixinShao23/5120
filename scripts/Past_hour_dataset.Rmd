@@ -17,7 +17,7 @@ library(lubridate)
 ### Overview
 ```{r}
 hourly_raw <- read_csv(
-  "data/raw/pedestrian-counting-system-monthly-counts-per-hour.csv",
+  "../data/raw/pedestrian-counting-system-monthly-counts-per-hour.csv",
   show_col_types = FALSE
 ) |>
   clean_names()
@@ -118,12 +118,24 @@ hourly_1year |>
   )
 ```
 
-#### Step 2：Create new time attributes(Weekday、Weekend、Public Holiday)
+#### Step 2：Create new time attributes(Weekday、Weekend)
 ```{r}
 hourly_time <- hourly_1year |>
   mutate(
-    weekday = wday(sensing_date, label = TRUE, abbr = FALSE,locale = "English"),
-    is_weekend = weekday %in% c("Saturday", "Sunday")
+    weekday_num = wday(
+      sensing_date,
+      week_start = 1
+    ),
+
+    weekday = wday(
+      sensing_date,
+      label = TRUE,
+      abbr = FALSE,
+      week_start = 1,
+      locale = "English"
+    ),
+
+    is_weekend = weekday_num %in% c(6, 7)
   )
 ```
 
@@ -148,9 +160,178 @@ hourly_time |>
 The weekend indicator was successfully created. Of the 825,104 records, 588,525 were recorded on weekdays and 236,579 on weekends.
 
 
+#### Step3 Select required columns
+```{r}
+hourly_selected <- hourly_time |>
+  select(
+    location_id,
+    sensing_date,
+    weekday,
+    weekday_num,
+    hour_day,
+    direction_1,
+    direction_2,
+    total_of_directions
+  )
+head(hourly_selected, 5)
+```
+
+
+#### The dataset was reduced to the attributes required for the MVP.
+
+#### Kept
+
+location_id (join key)
+sensing_date (date)
+weekday (derived temporal feature)
+is_weekend (derived temporal feature)
+hour_day (hour of day)
+direction_1 (pedestrian flow direction)
+direction_2 (pedestrian flow direction)
+total_of_directions (hourly pedestrian count)
+
+#### Dropped
+
+id (unique record identifier, not required)
+sensor_name (available in the Sensor Locations dataset)
+location (coordinates provided in the Sensor Locations dataset)
+
+#### Step 4. Create Historical Baseline
+
+```{r}
+hourly_baseline <- hourly_selected |>
+  group_by(
+    location_id,
+    weekday_num,
+    weekday,
+    hour_day
+  ) |>
+  summarise(
+    average_count = round(
+      mean(total_of_directions, na.rm = TRUE),
+      2
+    ),
+    median_count = median(
+      total_of_directions,
+      na.rm = TRUE
+    ),
+    sample_size = n(),
+    .groups = "drop"
+  ) |>
+  arrange(
+    location_id,
+    weekday_num,
+    hour_day
+  )
+head(hourly_baseline,5)
+```
+
+#### For each group, the median pedestrian count was calculated to represent the typical pedestrian activity. The median was selected instead of the mean because it is less affected by abnormal events (e.g., festivals or major public events) and provides a more stable historical reference.
+
+#### In addition, the number of observations (sample_size) was retained to indicate how many historical records contributed to each baseline value.
+
+
+```{r}
+dim(hourly_baseline)
+
+```
+#### Observation
+
+The aggregation reduced the dataset from 825,104 hourly records to 17,037 historical baseline records, providing a lightweight dataset suitable for real-time comparison and route recommendation.
+
+
+```{r}
+weekday_raw_summary <- hourly_selected |>
+  group_by(weekday) |>
+  summarise(
+    record_count = n(),
+    minimum_count = min(total_of_directions, na.rm = TRUE),
+    maximum_count = max(total_of_directions, na.rm = TRUE),
+    median_count = median(total_of_directions, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+weekday_raw_summary
+```
+
+
+```{r}
+summary(hourly_baseline$sample_size)
+```
+
+```{r}
+sum(is.na(hourly_baseline))
+```
+
+### Validation
+```{r}
+hourly_baseline |>
+  count(location_id) |>
+  summary()
+```
+
+#### Observation:
+Most sensor locations contain the expected 168 historical baseline records (7 weekdays × 24 hours). A small number of sensors have fewer records, likely due to missing observations or periods when the sensors were inactive. Overall, the dataset provides comprehensive temporal coverage for historical baseline construction.
+
+#### Check the minimum record sensor
+```{r}
+hourly_baseline |>
+  filter(sample_size == 1)
+```
+
+
+```{r}
+hourly_selected |>
+  filter(location_id == 37) |>
+  summarise(
+    earliest = min(sensing_date),
+    latest = max(sensing_date),
+    records = n()
+  )
+```
+#### Observation:
+Sensor 37 covers the full one-year period but contains only 5,965 hourly records, compared with a theoretical maximum of 8,760. This indicates that the sensor has substantial gaps in hourly observations. The records were retained, while sample_size was preserved to indicate the amount of historical data supporting each median baseline.
+
+
+```{r}
+hourly_baseline |>
+  count(location_id, weekday, hour_day) |>
+  filter(n > 1)
+```
+No duplicate
+
+### Export
+```{r}
+write_csv(
+  hourly_baseline,
+  "../data/processed/historical_crowd_baseline.csv"
+)
+```
 
 
 
+### Review
+```{r}
+baseline_check <- read_csv(
+  "../data/processed/historical_crowd_baseline.csv",
+  show_col_types = FALSE
+)
+
+glimpse(baseline_check)
+
+head(baseline_check)
+```
+
+#### Validation
+
+The processed dataset was validated before export.
+
+The following checks were performed:
+
+No missing values.
+No duplicated combinations of location_id, weekday, and hour_day.
+Sample sizes were examined to ensure that most baseline values were calculated from approximately one year of historical observations.
+The processed dataset was successfully exported and reloaded for verification.
 
 
 
