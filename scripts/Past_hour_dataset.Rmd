@@ -207,15 +207,48 @@ hourly_baseline <- hourly_selected |>
     hour_day
   ) |>
   summarise(
+    # Overall pedestrian counts
     average_count = round(
       mean(total_of_directions, na.rm = TRUE),
       2
     ),
+
     median_count = median(
       total_of_directions,
       na.rm = TRUE
     ),
+
+    # Direction 1 baseline
+    d1_med = median(
+      direction_1,
+      na.rm = TRUE
+    ),
+
+    # Direction 2 baseline
+    d2_med = median(
+      direction_2,
+      na.rm = TRUE
+    ),
+
+    # Overall per-minute baseline
+    total_med_perminute = round(
+      median(total_of_directions, na.rm = TRUE) / 60,
+      2
+    ),
+
+    # Directional per-minute baseline
+    d1_med_perminute = round(
+      median(direction_1, na.rm = TRUE) / 60,
+      2
+    ),
+
+    d2_med_perminute = round(
+      median(direction_2, na.rm = TRUE) / 60,
+      2
+    ),
+
     sample_size = n(),
+
     .groups = "drop"
   ) |>
   arrange(
