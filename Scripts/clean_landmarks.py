@@ -11,7 +11,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # Keeping the fallback makes the script runnable from the project root too.
 PROJECT_ROOT = SCRIPT_DIR.parent if SCRIPT_DIR.name.lower() == "scripts" else SCRIPT_DIR
 SOURCE = PROJECT_ROOT / "data" / "raw" / "landmarks_poi_raw.csv"
-OUTPUT = PROJECT_ROOT / "data" / "cleaned" / "landmarks_poi_noise_cleaned.csv"
+OUTPUT = PROJECT_ROOT / "data" / "processed" / "landmarks_poi_noise_cleaned.csv"
 
 
 # The POI dataset does not contain measured decibels. These are project-defined
