@@ -1,8 +1,11 @@
 # RStudio
 .Rproj.user/
 .Rhistory
+.RHistory
 .RData
 .Ruserdata
+.RDataTmp*
+*.Rproj.user
 
 # Environment files
 .Renviron
