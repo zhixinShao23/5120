@@ -3,20 +3,19 @@
 .Rhistory
 .RHistory
 .RData
-.Ruserdata
 .RDataTmp*
-*.Rproj.user
 
-# Environment files
+# Environment
 .Renviron
 
 # Raw datasets
-data/raw/
+data/raw/*
+!data/raw/.gitkeep
 
 # Temporary files
 *.tmp
 *.log
 
-# Operating system files
+# OS files
 .DS_Store
 Thumbs.db
