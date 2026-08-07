@@ -16,6 +16,7 @@ library(lubridate)
 
 ### Overview
 ```{r}
+# Read raw dataset
 hourly_raw <- read_csv(
   "../data/raw/pedestrian-counting-system-monthly-counts-per-hour.csv",
   show_col_types = FALSE
@@ -24,6 +25,7 @@ hourly_raw <- read_csv(
 ```
 
 ```{r}
+# overview
 dim(hourly_raw)
 names(hourly_raw)
 glimpse(hourly_raw)
@@ -32,6 +34,7 @@ head(hourly_raw)
 
 
 ```{r}
+# check the whole during
 hourly_raw %>%
   summarise(
     earliest = min(sensing_date),
@@ -39,6 +42,7 @@ hourly_raw %>%
   )
 ```
 ```{r}
+# count records by year
 hourly_raw |>
   mutate(
     year = year(sensing_date)
@@ -49,6 +53,7 @@ hourly_raw |>
 The dataset covers pedestrian counts from 2024 to 2026. Most records were collected during 2025, while 2024 and 2026 contain fewer records because they represent partial years.
 
 ```{r}
+# count unique sensors
 hourly_raw |>
   summarise(
     unique_sensors = n_distinct(location_id)
@@ -60,6 +65,7 @@ The dataset contains data from 103 unique pedestrian sensors, indicating that ho
 
 
 ```{r}
+# overview of the pedestrian count
 summary(hourly_raw$total_of_directions)
 ```
 #### Observation:
@@ -72,6 +78,7 @@ The Pedestrian Counting System (Counts per Hour) dataset contains 1,613,233 reco
 
 ## Missing checking
 ```{r}
+# check missing data
 colSums(is.na(hourly_raw))
 ```
 #### Observation:
@@ -79,6 +86,7 @@ No missing values were found in the key attributes (location_id, sensing_date, h
 
 
 ```{r}
+# check duplicate records
 hourly_raw |>
   count(location_id, sensing_date, hour_day) |>
   filter(n > 1)
@@ -110,6 +118,7 @@ hourly_1year <- hourly_raw |>
 ```
 
 ```{r}
+# count the records in one year
 hourly_1year |>
   summarise(
     earliest = min(sensing_date),
@@ -118,42 +127,38 @@ hourly_1year |>
   )
 ```
 
-#### Step 2：Create new time attributes(Weekday、Weekend)
+#### Step 2：Create new time attributes(Weekday, weekday_num)
 ```{r}
 hourly_time <- hourly_1year |>
   mutate(
+    # Create weekday number: Monday = 1, Sunday = 7
     weekday_num = wday(
       sensing_date,
       week_start = 1
     ),
-
+    # Create weekday name in English
     weekday = wday(
       sensing_date,
       label = TRUE,
       abbr = FALSE,
       week_start = 1,
       locale = "English"
-    ),
-
-    is_weekend = weekday_num %in% c(6, 7)
+    )
   )
 ```
 
 
 ```{r}
+# Check the new time attributes
 hourly_time |>
-  select(sensing_date, weekday, is_weekend) |>
+  select(sensing_date, weekday_num, weekday) |>
   head(5)
 ```
 
 ```{r}
+# count records by weekday
 hourly_time |>
   count(weekday)
-```
-
-```{r}
-hourly_time |>
-  count(is_weekend)
 ```
 
 #### Observation:
@@ -274,12 +279,20 @@ The aggregation reduced the dataset from 825,104 hourly records to 17,037 histor
 
 
 ```{r}
+# Summarise pedestrian counts by weekday
 weekday_raw_summary <- hourly_selected |>
   group_by(weekday) |>
   summarise(
+    # Number of records for each weekday
     record_count = n(),
+    
+    # Minimum hourly pedestrian count
     minimum_count = min(total_of_directions, na.rm = TRUE),
+    
+    # Maximum hourly pedestrian count
     maximum_count = max(total_of_directions, na.rm = TRUE),
+    
+    # Median hourly pedestrian count
     median_count = median(total_of_directions, na.rm = TRUE),
     .groups = "drop"
   )
@@ -308,12 +321,14 @@ Most sensor locations contain the expected 168 historical baseline records (7 we
 
 #### Check the minimum record sensor
 ```{r}
+# find Min: 1.00
 hourly_baseline |>
   filter(sample_size == 1)
 ```
 
 
 ```{r}
+# check the NO.37 sensor
 hourly_selected |>
   filter(location_id == 37) |>
   summarise(
@@ -327,6 +342,7 @@ Sensor 37 covers the full one-year period but contains only 5,965 hourly records
 
 
 ```{r}
+# check duplication
 hourly_baseline |>
   count(location_id, weekday, hour_day) |>
   filter(n > 1)

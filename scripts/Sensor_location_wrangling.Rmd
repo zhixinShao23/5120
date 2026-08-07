@@ -15,14 +15,16 @@ library(janitor)
 ## Data Exploration
 
 ```{r}
+# Read raw dataset and overview
 sensor_raw <- read_csv(
-  "data/raw/pedestrian-counting-system-sensor-locations.csv",
+  "../data/raw/pedestrian-counting-system-sensor-locations.csv",
   show_col_types = FALSE
 ) |>
   clean_names()
 
 glimpse(sensor_raw)
 ```
+
 ```{r}
 head(sensor_raw)
 ```
@@ -33,12 +35,14 @@ names(sensor_raw)
 ```
 
 ```{r}
+# check missing data
 colSums(is.na(sensor_raw))
 ```
 
 
 
 ```{r}
+# check detailed information of missing data
 sensor_raw %>%
     filter(
         is.na(direction_1) |
@@ -50,6 +54,7 @@ sensor_raw %>%
 The 34 missing values in direction_1 and direction_2 are all associated with active indoor sensors, indicating that directional information is not applicable for these sensors rather than being missing due to errors.
 
 ```{r}
+# check duplicate sensors
 sensor_raw %>%
     count(location_id) %>%
     filter(n > 1)
@@ -59,6 +64,7 @@ sensor_raw %>%
 
 
 ```{r}
+# count the active sensors
 sensor_raw %>%
   count(status)
 ```
@@ -88,6 +94,7 @@ Overall, the dataset is complete and suitable for further data cleaning and inte
 
 ### Select required columns
 ```{r}
+# select required columns
 sensor_selected <- sensor_raw %>%
   select(
     location_id,
@@ -101,6 +108,8 @@ sensor_selected <- sensor_raw %>%
 
 glimpse(sensor_selected)
 ```
+
+
 ```{r}
 head(sensor_selected)
 ```
@@ -112,7 +121,7 @@ head(sensor_selected)
 ```{r}
 write_csv(
   sensor_selected,
-  "data/processed/sensor_locations_clean.csv"
+  "../data/processed/sensor_locations_clean.csv"
 )
 ```
 #### Export cleaned dataset:
@@ -122,17 +131,19 @@ The cleaned sensor locations dataset was exported as sensor_locations_clean.csv 
 ## Validation
 ```{r}
 sensor_check <- read_csv(
-  "data/processed/sensor_locations_clean.csv",
+  "../data/processed/sensor_locations_clean.csv",
   show_col_types = FALSE
 )
 
 glimpse(sensor_check)
 ```
 ```{r}
+# check missing after export
 colSums(is.na(sensor_check))
 ```
 
 ```{r}
+# check duplicate sensors
 sensor_check %>%
   count(location_id) %>%
   filter(n > 1)
