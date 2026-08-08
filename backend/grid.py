@@ -48,12 +48,43 @@ SENSORS_CSV = "data/sensors.csv"
 # real streets, so 90 m leaves most blocks unmeasured. 130 m trades a little
 # match precision for far better coverage. Check sensor_mismatches() after
 # changing this, and prefer the smallest value that keeps coverage above ~60%.
-SENSOR_RADIUS_M = 130.0
+SENSOR_RADIUS_M = 70.0
 
 # Hoddle Grid, west to east then south to north.
 NS_STREETS = ["Spencer", "King", "William", "Queen", "Elizabeth",
               "Swanston", "Russell", "Exhibition", "Spring"]
-EW_STREETS = ["Flinders", "Collins", "Bourke", "Lonsdale", "LaTrobe"]
+
+# The majors, south to north. The Hoddle Grid also carries a "little" street
+# roughly midway between each pair - Flinders Lane, Little Collins, Little
+# Bourke, Little Lonsdale - which are genuinely quieter than the majors and are
+# the routes locals actually use.
+#
+# Including them doubles the east-west resolution: 81 intersections and 144
+# blocks instead of 45 and 76. But the sensor network is concentrated on the
+# MAJORS, so coverage drops sharply. Run `python grid.py` after toggling this
+# and check edge_coverage_pct: if it falls far, the router is guessing about
+# most of the city rather than measuring it.
+INCLUDE_LITTLE_STREETS = True
+
+EW_MAJOR = ["Flinders", "Collins", "Bourke", "Lonsdale", "LaTrobe"]
+EW_LITTLE = {                       # little street -> the major it sits north of
+    "Flinders": "FlindersLane",
+    "Collins": "LittleCollins",
+    "Bourke": "LittleBourke",
+    "Lonsdale": "LittleLonsdale",
+}
+
+def _ew_streets() -> list[str]:
+    if not INCLUDE_LITTLE_STREETS:
+        return list(EW_MAJOR)
+    out = []
+    for i, major in enumerate(EW_MAJOR):
+        out.append(major)
+        if major in EW_LITTLE and i < len(EW_MAJOR) - 1:
+            out.append(EW_LITTLE[major])
+    return out
+
+EW_STREETS = _ew_streets()
 
 # --- Grid geometry -------------------------------------------------------
 # The 45 intersections are interpolated bilinearly from the four corners of the
@@ -103,6 +134,61 @@ class Sensor:
 # --------------------------------------------------------------------------
 
 EARTH_R_M = 6_371_000.0
+
+
+from dataclasses import dataclass
+import os
+
+REFUGES_CSV = "landmarks_poi_noise_cleaned.csv"
+
+@dataclass(frozen=True)
+class RefugePOI:
+    poi_id: str
+    name: str
+    sub_theme: str
+    lat: float
+    lng: float
+    noise_level: str
+
+def load_refuges(csv_path: str = REFUGES_CSV) -> dict[str, RefugePOI]:
+    if not os.path.exists(csv_path):
+        csv_path = os.path.join("data", os.path.basename(csv_path))
+    if not os.path.exists(csv_path):
+        return {}
+    
+    df = pd.read_csv(csv_path)
+    refuges = {}
+    for r in df.itertuples():
+        refuges[r.poi_id] = RefugePOI(
+            poi_id=str(r.poi_id),
+            name=str(r.feature_name),
+            sub_theme=str(r.sub_theme),
+            lat=float(r.latitude),
+            lng=float(r.longitude),
+            noise_level=str(r.noise_proxy_level),
+        )
+    return refuges
+
+REFUGES: dict[str, RefugePOI] = load_refuges()
+
+def find_nearby_refuges(lat: float, lng: float, radius_m: float = 800.0) -> list[dict]:
+    results = []
+    for r in REFUGES.values():
+        dist = haversine_m(lat, lng, r.lat, r.lng)
+        if dist <= radius_m:
+            results.append({
+                "poi_id": r.poi_id,
+                "name": r.name,
+                "sub_theme": r.sub_theme,
+                "lat": r.lat,
+                "lng": r.lng,
+                "noise_level": r.noise_level,
+                "distance_m": round(dist),
+                "minutes": round(dist / 80.0),
+                "nearest_node": nearest_node(r.lat, r.lng)
+            })
+    return sorted(results, key=lambda x: x["distance_m"])
+
 
 
 def haversine_m(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -240,18 +326,27 @@ def load_sensors(csv_path: str = SENSORS_CSV) -> dict[int, Sensor]:
 
 
 def map_edges_to_sensors(g: nx.Graph, nodes, sensors,
-                         radius_m: float = SENSOR_RADIUS_M) -> dict[frozenset, int | None]:
-    """Nearest sensor to each block's midpoint, or None if nothing is within
-    `radius_m`. None means UNMEASURED and must never be read as quiet."""
-    mapping: dict[frozenset, int | None] = {}
+                         radius_m: float = SENSOR_RADIUS_M) -> dict[frozenset, list[int]]:
+    """ALL sensors within `radius_m` of each block's midpoint, nearest first.
+
+    Not just the closest one. Two sensors can sit on the same corner and read
+    very differently - Flinders/Elizabeth has one at 16 m reading 5/min and
+    another at 105 m reading 86/min. Taking only the nearest would score that
+    block as quiet. The scoring engine decides what to do with the list; this
+    function only reports what is in range.
+
+    An empty list means UNMEASURED, which must never be read as quiet.
+    """
+    mapping: dict[frozenset, list[int]] = {}
     for u, v in g.edges:
         mid = midpoint(nodes[u], nodes[v])
-        best, best_d = None, radius_m
+        near = []
         for sid, s in sensors.items():
             d = haversine_m(mid[0], mid[1], s.lat, s.lng)
-            if d <= best_d:
-                best, best_d = sid, d
-        mapping[frozenset((u, v))] = best
+            if d <= radius_m:
+                near.append((d, sid))
+        near.sort()
+        mapping[frozenset((u, v))] = [sid for _, sid in near]
     return mapping
 
 
@@ -264,10 +359,14 @@ GRAPH: nx.Graph = build_graph(NODES)
 
 try:
     SENSORS: dict[int, Sensor] = load_sensors()
-except FileNotFoundError:                       # pragma: no cover
+except FileNotFoundError:
+    import os
+    print(f"WARNING: no sensor file at {os.path.abspath(SENSORS_CSV)}\n"
+          f"         Every block will read UNMEASURED until it exists.\n"
+          f"         Working directory is {os.getcwd()}")
     SENSORS = {}
 
-EDGE_SENSOR: dict[frozenset, int | None] = map_edges_to_sensors(GRAPH, NODES, SENSORS)
+EDGE_SENSORS: dict[frozenset, list[int]] = map_edges_to_sensors(GRAPH, NODES, SENSORS)
 
 
 # --------------------------------------------------------------------------
@@ -277,6 +376,66 @@ EDGE_SENSOR: dict[frozenset, int | None] = map_edges_to_sensors(GRAPH, NODES, SE
 def nearest_node(lat: float, lng: float) -> str:
     """Snap an arbitrary map position to the closest intersection."""
     return min(NODES, key=lambda n: haversine_m(lat, lng, NODES[n][0], NODES[n][1]))
+
+
+def project_to_edge(lat: float, lng: float) -> dict | None:
+    """Project a position onto the nearest BLOCK, not the nearest corner.
+
+    Snapping to a node discards up to ~116 m (half a block) and starts the walk
+    somewhere the person is not. Projecting onto the edge finds the point on the
+    street they are actually standing beside, then reports how far it is to each
+    end of that block, so the router can choose which end to enter by.
+
+    Returns:
+        u, v          the block they are standing on
+        point         (lat, lng) of the projected position on that block
+        offset_m      perpendicular walk from where they are to the street
+        to_u_m/to_v_m walk along the block from the projection to each corner
+    """
+    if not NODES:
+        return None
+
+    # Equirectangular projection, local to Melbourne. Accurate to well under a
+    # metre at CBD scale and far cheaper than doing this on the sphere.
+    lat0 = radians(lat)
+    kx = cos(lat0) * 111_320.0
+    ky = 111_320.0
+    to_xy = lambda a, b: ((b - lng) * kx, (a - lat) * ky)
+
+    best = None
+    for u, v in GRAPH.edges:
+        ax, ay = to_xy(*NODES[u])
+        bx, by = to_xy(*NODES[v])
+        dx, dy = bx - ax, by - ay
+        seg2 = dx * dx + dy * dy
+        if seg2 == 0:
+            continue
+        # t is how far along the block the projection falls, clamped to its ends
+        t = max(0.0, min(1.0, -(ax * dx + ay * dy) / seg2))
+        px, py = ax + t * dx, ay + t * dy
+        d = sqrt(px * px + py * py)
+        if best is None or d < best[0]:
+            best = (d, u, v, t)
+
+    d, u, v, t = best
+    length = edge_length(u, v)
+    au, av = NODES[u], NODES[v]
+    return {
+        "u": u, "v": v,
+        "point": (round(au[0] + t * (av[0] - au[0]), 6),
+                  round(au[1] + t * (av[1] - au[1]), 6)),
+        "offset_m": round(d, 1),
+        "to_u_m": round(t * length, 1),
+        "to_v_m": round((1.0 - t) * length, 1),
+    }
+
+
+def snap(lat: float, lng: float) -> tuple[str, float]:
+    """(intersection, metres away). The distance matters: blocks are ~232 m, so
+    a snap can move someone over 100 m. The client must show that rather than
+    silently relocating them."""
+    node = nearest_node(lat, lng)
+    return node, round(haversine_m(lat, lng, NODES[node][0], NODES[node][1]), 1)
 
 
 def edge_length(u: str, v: str) -> float:
@@ -294,9 +453,19 @@ def edge_bearing(u: str, v: str) -> float:
     return bearing_deg(a[0], a[1], b[0], b[1])
 
 
+def sensors_for_edge(u: str, v: str) -> list[int]:
+    """Every sensor within range of this block, nearest first. Empty = unmeasured."""
+    return EDGE_SENSORS.get(frozenset((u, v)), [])
+
+
 def sensor_for_edge(u: str, v: str) -> int | None:
-    """Sensor measuring this block, or None if unmeasured."""
-    return EDGE_SENSOR.get(frozenset((u, v)))
+    """The CLOSEST sensor, for labelling and debugging only.
+
+    Do not use this for scoring: the nearest sensor is not necessarily the one
+    that matters. Use sensors_for_edge() and pick the worst reading.
+    """
+    near = sensors_for_edge(u, v)
+    return near[0] if near else None
 
 
 def coords(path: list[str]) -> list[tuple[float, float]]:
@@ -307,6 +476,27 @@ def coords(path: list[str]) -> list[tuple[float, float]]:
 # --------------------------------------------------------------------------
 # Diagnostics — run before trusting anything built on top
 # --------------------------------------------------------------------------
+
+LITTLE_NAMES = set(EW_LITTLE.values())
+
+
+def coverage_by_street_type() -> dict:
+    """Sensor coverage split between major streets and the little ones.
+
+    The sensor network is concentrated on the majors, so a headline coverage
+    figure hides the real picture: adding the little streets can leave the
+    router measuring the busy roads well and guessing about everything else.
+    """
+    out = {"major": [0, 0], "little": [0, 0]}
+    for u, v, d in GRAPH.edges(data=True):
+        kind = "little" if d["street"] in LITTLE_NAMES else "major"
+        out[kind][1] += 1
+        if EDGE_SENSORS.get(frozenset((u, v))):
+            out[kind][0] += 1
+    return {k: {"measured": a, "blocks": b,
+                "pct": round(100 * a / b, 1) if b else 0.0}
+            for k, (a, b) in out.items()}
+
 
 def sensor_mismatches() -> list[str]:
     """Blocks whose matched sensor description doesn't mention the street the
@@ -319,7 +509,12 @@ def sensor_mismatches() -> list[str]:
         sid = sensor_for_edge(u, v)
         if sid is None:
             continue
-        street = d["street"].lower().replace("latrobe", "la trobe")
+        street = (d["street"].lower()
+                  .replace("latrobe", "la trobe")
+                  .replace("littlecollins", "little collins")
+                  .replace("littlebourke", "little bourke")
+                  .replace("littlelonsdale", "little lonsdale")
+                  .replace("flinderslane", "flinders lane"))
         desc = SENSORS[sid].description.lower()
         if street not in desc:
             out.append(f"{u} -> {v} ({d['street']}) matched '{SENSORS[sid].description}'")
@@ -328,7 +523,7 @@ def sensor_mismatches() -> list[str]:
 
 def diagnostics() -> dict:
     lengths = [d["length_m"] for _, _, d in GRAPH.edges(data=True)]
-    covered = sum(1 for s in EDGE_SENSOR.values() if s is not None)
+    covered = sum(1 for s in EDGE_SENSORS.values() if s)
     n_edges = GRAPH.number_of_edges()
     with_bearing = sum(1 for s in SENSORS.values() if s.bearing_d1 is not None)
     mismatches = sensor_mismatches()
@@ -344,8 +539,12 @@ def diagnostics() -> dict:
         "sensors_with_bearing": with_bearing,
         "bearing_coverage_pct": round(100 * with_bearing / len(SENSORS), 1) if SENSORS else 0.0,
         "edges_with_sensor": covered,
+        "mean_sensors_per_edge": round(
+            sum(len(s) for s in EDGE_SENSORS.values()) / n_edges, 2) if n_edges else 0,
         "edge_coverage_pct": round(100 * covered / n_edges, 1) if n_edges else 0.0,
         "sensor_mismatches": len(mismatches),
+        "little_streets": INCLUDE_LITTLE_STREETS,
+        "coverage_by_type": coverage_by_street_type(),
     }
 
 
@@ -369,4 +568,5 @@ if __name__ == "__main__":
         for u, v in zip(p, p[1:]):
             sid = sensor_for_edge(u, v)
             tag = SENSORS[sid].description if sid else "UNMEASURED"
-            print(f"  {u:>22} -> {v:<22} {edge_bearing(u,v):5.0f}deg  {tag}")
+            print(f"  {u:>22} -> {v:<22} {edge_bearing(u,v):5.0f}deg  {tag}") 
+
