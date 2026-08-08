@@ -15,9 +15,10 @@ const props = defineProps({
   showLandmarks: { type: Boolean, default: false },
   focus: { type: Object, default: null },
   panelOpen: { type: Boolean, default: false },
+  pickMode: { type: String, default: null },
 })
 
-const emit = defineEmits(['select-route', 'select-landmark', 'map-ready'])
+const emit = defineEmits(['select-route', 'select-landmark', 'map-ready', 'pick-location', 'cancel-pick'])
 
 const MELBOURNE_CBD = [-37.8136, 144.9631]
 
@@ -111,6 +112,9 @@ onMounted(() => {
     endpoints: L.layerGroup().addTo(instance),
   }
 
+  instance.on('click', onMapClick)
+  window.addEventListener('keydown', onKeydown)
+
   map.value = instance
   emit('map-ready', instance)
 
@@ -121,9 +125,21 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
   map.value?.remove()
   map.value = null
 })
+
+// --- Tap-to-pick origin/destination ----------------------------------------
+
+function onMapClick(e) {
+  if (!props.pickMode) return
+  emit('pick-location', { lat: e.latlng.lat, lng: e.latlng.lng })
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape' && props.pickMode) emit('cancel-pick')
+}
 
 // --- Crowd layer (feature 1) ----------------------------------------------
 
@@ -396,7 +412,19 @@ defineExpose({ fitToRoutes })
 
 <template>
   <div class="map">
-    <div ref="container" class="map__canvas" role="application" aria-label="Map of Melbourne" />
+    <div
+      ref="container"
+      class="map__canvas"
+      :class="{ 'map__canvas--picking': pickMode }"
+      role="application"
+      aria-label="Map of Melbourne"
+    />
+
+    <div v-if="pickMode" class="map__pick-hint">
+      <AppIcon name="place" :size="16" />
+      Tap the map to set your {{ pickMode === 'origin' ? 'starting point' : 'destination' }}
+      <button class="map__pick-cancel" @click="emit('cancel-pick')">Cancel</button>
+    </div>
 
     <div class="map__controls">
       <button
@@ -441,6 +469,42 @@ defineExpose({ fitToRoutes })
 .map__canvas {
   height: 100%;
   width: 100%;
+}
+
+.map__canvas--picking {
+  cursor: crosshair;
+}
+
+.map__pick-hint {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 10px 10px 14px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-chip);
+  white-space: nowrap;
+}
+
+.map__pick-cancel {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.map__pick-cancel:hover {
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .map__controls {

@@ -1,11 +1,14 @@
 /**
  * The single seam between the UI and the backend.
  *
- * Every call tries the real endpoint first and falls back to the local mock
- * if it is unreachable or errors. That means the app runs today with no
- * backend at all, and starts using live City of Melbourne data the moment the
- * team points `VITE_API_BASE` at a running service — with no component
- * changes.
+ * Every call tries the real endpoint first and falls back to the local
+ * routing engine if it is unreachable or errors. That engine
+ * (`services/engine/`) is a client-side port of the Python backend
+ * (grid.py / scoring.py / crowd.py / routing.py / main.py) — real Hoddle
+ * Grid intersections, real pedestrian sensor data, the same crowd-cost
+ * model — so the app runs today with no server at all, and moves to
+ * whatever the team deploys the moment `VITE_API_BASE` points at it, with
+ * no component changes.
  *
  * Expected endpoints (documented here so the backend has a contract to hit):
  *   GET  /api/crowd/live                     -> { sensors: Sensor[], observedAt }
@@ -15,18 +18,16 @@
  *   POST /api/routes/plan { origin, destination, maxFlow } -> { routes: Route[] }
  */
 
-import { buildGraph, nearestNode } from '@/mock/cityGrid.js'
 import { PLACES, LANDMARKS, WEATHER } from '@/mock/data.js'
-import { planRoutes, rankRoutes, WALK_SPEED_MPS, MAX_FLOW } from './routing.js'
+import { rankRoutes, WALK_SPEED_MPS } from './routing.js'
 import { matchToRoads } from './realRoads.js'
+import * as grid from './engine/grid.js'
+import * as localApi from './engine/localApi.js'
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 const REQUEST_TIMEOUT_MS = 4000
 
-/** Shared graph instance — building it is cheap but not free. */
-export const graph = buildGraph()
-
-/** Tracks whether we are serving real data, so the UI can say so honestly. */
+/** Tracks whether the real `/api` backend answered, so the UI can say so honestly. */
 export const connection = { live: false, lastError: null }
 
 async function request(path, options = {}) {
@@ -53,50 +54,9 @@ async function request(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Mock generators
+// Crowd level bands — thresholds match the old mock's so CrowdLegend/MapView
+// don't need to change.
 // ---------------------------------------------------------------------------
-
-/**
- * Deterministic per-sensor jitter. Using a hash rather than Math.random keeps
- * a sensor's character stable between polls — a quiet corner stays quiet —
- * while the time term still makes the numbers move.
- */
-function jitter(seed, bucket) {
-  let h = 2166136261
-  const key = `${seed}:${bucket}`
-  for (let i = 0; i < key.length; i++) {
-    h ^= key.charCodeAt(i)
-    h = Math.imul(h, 16777619)
-  }
-  return ((h >>> 0) % 1000) / 1000
-}
-
-/** Foot traffic follows a two-peak weekday curve: commute in, lunch, commute out. */
-function timeOfDayFactor(date) {
-  const hour = date.getHours() + date.getMinutes() / 60
-  const peak = (centre, spread, height) =>
-    height * Math.exp(-((hour - centre) ** 2) / (2 * spread ** 2))
-
-  const weekend = date.getDay() === 0 || date.getDay() === 6
-  if (weekend) {
-    return 0.25 + peak(13, 3.0, 0.6)
-  }
-  return 0.15 + peak(8.5, 1.1, 0.75) + peak(12.8, 1.4, 0.65) + peak(17.5, 1.2, 0.9)
-}
-
-/** Only a subset of intersections carry a pedestrian counter, as in reality. */
-const SENSOR_NODES = [
-  '5:0', '5:1', '5:2', '5:3', '5:4', // Swanston St spine
-  '4:0', '4:2', '4:4', // Elizabeth St
-  '3:1', '3:3', // Queen St
-  '2:1', '2:3', // William St
-  '0:0', '0:2', // Spencer / Southern Cross
-  '1:2', // King St
-  '6:2', '6:4', // Russell St
-  '7:1', '7:3', // Exhibition St
-  '8:0', '8:2', '8:4', // Spring St
-  '5:5', '3:5', // Victoria St
-]
 
 function levelFor(normalised) {
   if (normalised < 0.3) return 'low'
@@ -105,36 +65,123 @@ function levelFor(normalised) {
   return 'severe'
 }
 
-function mockSensors(now = new Date()) {
-  const tod = timeOfDayFactor(now)
-  // Re-roll jitter every 30 s so the map visibly breathes without thrashing.
-  const bucket = Math.floor(now.getTime() / 30000)
+/** Previous poll's heatmap points, keyed by sensor id — for trend arrows. */
+let previousPoints = new Map()
 
-  return SENSOR_NODES.map((id) => {
-    const node = graph.nodes.get(id)
-    const wobble = (jitter(id, bucket) - 0.5) * 0.18
-    const prevWobble = (jitter(id, bucket - 1) - 0.5) * 0.18
+// ---------------------------------------------------------------------------
+// Route shape adapter — the engine speaks the Python backend's vocabulary
+// (`distance_m`, `peak_density`, `steps: [{from, to, street, density}]`);
+// the Vue components speak the UI's (`distanceM`, `peakFlow`,
+// `steps: [{instruction, detail, metres}]`). This is the seam between them.
+// ---------------------------------------------------------------------------
 
-    const normalised = Math.min(1, Math.max(0.02, node.busyness * tod + wobble))
-    const previous = Math.min(1, Math.max(0.02, node.busyness * tod + prevWobble))
+const PRESET_META = {
+  quiet: { label: 'Quietest', accent: '#12805c' },
+  calm: { label: 'Balanced', accent: '#1a73e8' },
+  fast: { label: 'Fastest', accent: '#e8710a' },
+}
 
-    // Counts are people per MINUTE, scaled so a fully saturated sensor
-    // reads MAX_FLOW (200/min) — the same ceiling as the comfort slider.
-    const count = Math.round(normalised * MAX_FLOW)
-
-    return {
-      id: `sensor-${id}`,
-      nodeId: id,
-      name: node.name,
-      lat: node.lat,
-      lng: node.lng,
-      count,
-      normalised,
-      level: levelFor(normalised),
-      trend: normalised - previous > 0.015 ? 'rising' : normalised - previous < -0.015 ? 'falling' : 'steady',
-      updatedAt: now.toISOString(),
+/** Consecutive same-street blocks collapse into one turn-by-turn instruction. */
+function stepsFromBlocks(blockSteps) {
+  const out = []
+  for (const s of blockSteps) {
+    const previous = out[out.length - 1]
+    if (previous && previous.detail === s.street) {
+      previous.metres += s.length_m
+    } else {
+      out.push({
+        instruction: out.length === 0 ? `Head along ${s.street}` : `Continue onto ${s.street}`,
+        detail: s.street,
+        metres: s.length_m,
+      })
     }
-  })
+  }
+  return out.map((s) => ({ ...s, metres: Math.round(s.metres) }))
+}
+
+/** Every measured block over the user's limit becomes a warning. */
+function warningsFromBlocks(blockSteps, limit) {
+  return blockSteps
+    .filter((s) => s.measured && s.density > limit)
+    .map((s) => ({
+      nodeId: s.to,
+      name: s.to,
+      message: `${s.density} people/min on ${s.street} — over your limit`,
+      count: s.density,
+    }))
+}
+
+/** "via Little Collins St & Russell St" — the streets that define the route. */
+function viaFromBlocks(blockSteps) {
+  const streets = []
+  for (const s of blockSteps) {
+    if (streets[streets.length - 1] !== s.street) streets.push(s.street)
+  }
+  return streets.slice(0, 3).join(' & ')
+}
+
+/** Turn points where the street changes — for snapping onto real roads. */
+function waypointsFromRoute(route, endpoints) {
+  const waypoints = [endpoints.origin ?? { lat: route.coords[0][0], lng: route.coords[0][1] }]
+  for (let i = 1; i < route.steps.length; i++) {
+    if (route.steps[i].street !== route.steps[i - 1].street) {
+      const [lat, lng] = route.coords[i]
+      waypoints.push({ lat, lng })
+    }
+  }
+  const [lastLat, lastLng] = route.coords[route.coords.length - 1]
+  waypoints.push(endpoints.destination ?? { lat: lastLat, lng: lastLng })
+  return waypoints
+}
+
+function toUiRoute(route, endpoints, maxFlow) {
+  const meta = PRESET_META[route.id] ?? { label: route.id, accent: '#5f6368' }
+
+  const coordinates = [...route.coords]
+  if (endpoints.origin) coordinates.unshift([endpoints.origin.lat, endpoints.origin.lng])
+  if (endpoints.destination) coordinates.push([endpoints.destination.lat, endpoints.destination.lng])
+
+  const peakStep = route.peak_density != null
+    ? route.steps.find((s) => s.density === route.peak_density)
+    : null
+
+  return {
+    id: route.id,
+    presetId: route.id,
+    label: meta.label,
+    accent: meta.accent,
+    coordinates,
+    waypoints: waypointsFromRoute(route, endpoints),
+    distanceM: route.total_m,
+    durationMin: route.total_minutes,
+    peakFlow: route.peak_density ?? 0,
+    peakAt: peakStep?.street ?? null,
+    meanFlow: route.mean_density ?? 0,
+    warnings: warningsFromBlocks(route.steps, maxFlow),
+    steps: stepsFromBlocks(route.steps),
+    via: viaFromBlocks(route.steps),
+  }
+}
+
+/** Drop routes whose real-road geometry substantially duplicates a calmer one. */
+function dedupeOverlapping(routes) {
+  const kept = []
+  for (const route of [...routes].sort((a, b) => a.meanFlow - b.meanFlow)) {
+    const signature = new Set(
+      route.coordinates.map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`),
+    )
+    const duplicate = kept.some((other) => {
+      let shared = 0
+      for (const point of signature) if (other._signature.has(point)) shared++
+      return shared / Math.min(signature.size, other._signature.size) > 0.8
+    })
+    if (!duplicate) {
+      route._signature = signature
+      kept.push(route)
+    }
+  }
+  for (const route of kept) delete route._signature
+  return kept
 }
 
 // ---------------------------------------------------------------------------
@@ -144,12 +191,38 @@ function mockSensors(now = new Date()) {
 /** Feature 1 — live crowd levels for the map. */
 export async function fetchLiveCrowd() {
   const data = await request('/crowd/live')
-  const sensors = data?.sensors ?? mockSensors()
-  return {
-    sensors,
-    observedAt: data?.observedAt ?? new Date().toISOString(),
-    live: connection.live,
+  if (data?.sensors) {
+    return { sensors: data.sensors, observedAt: data.observedAt ?? new Date().toISOString(), live: connection.live }
   }
+
+  const now = new Date()
+  const hm = await localApi.heatmap()
+  const sensors = hm.data.points.map((p) => {
+    const prevNormalised = previousPoints.get(p.id)?.intensity ?? p.intensity ?? 0
+    const normalised = p.intensity ?? 0
+    const delta = normalised - prevNormalised
+    return {
+      id: `sensor-${p.id}`,
+      nodeId: grid.nearestNode(p.lat, p.lng),
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      count: p.density,
+      normalised,
+      level: levelFor(normalised),
+      trend: delta > 0.015 ? 'rising' : delta < -0.015 ? 'falling' : 'steady',
+      updatedAt: now.toISOString(),
+    }
+  })
+  previousPoints = new Map(hm.data.points.map((p) => [p.id, p]))
+
+  // No real `/api` backend to report through `request()`, but the engine's
+  // own crowd source (live government feed vs. cached snapshot) is the
+  // thing "Live City of Melbourne data" is actually meant to reflect.
+  connection.live = hm.meta.source === 'live'
+  connection.lastError = null
+
+  return { sensors, observedAt: now.toISOString(), live: connection.live }
 }
 
 export async function fetchWeather() {
@@ -186,29 +259,33 @@ export async function fetchLandmarks() {
 /**
  * Feature 2 — recommended routes.
  *
- * `maxFlow` is the user's comfort ceiling in people per minute: no point on
- * the recommended route should exceed it.
+ * `maxFlow` is the user's comfort ceiling in people per minute, passed
+ * straight through to the engine as its `tolerance` — no point on the
+ * recommended route should exceed it.
  */
-export async function planRoute({ origin, destination, maxFlow, sensors }) {
+export async function planRoute({ origin, destination, maxFlow }) {
   const data = await request('/routes/plan', {
     method: 'POST',
     body: JSON.stringify({ origin, destination, maxFlow }),
   })
   if (data?.routes) return data.routes
 
-  const startNode = nearestNode(graph, origin)
-  const endNode = nearestNode(graph, destination)
-  if (!startNode || !endNode || startNode.id === endNode.id) return []
+  if (!origin || !destination) return []
 
-  const live = new Map((sensors ?? []).map((s) => [s.nodeId, s]))
-  const routes = planRoutes({
-    startId: startNode.id,
-    endId: endNode.id,
-    live,
-    graph,
-    endpoints: { origin, destination },
-    maxFlow,
-  })
+  let result
+  try {
+    result = await localApi.route({
+      origin: { lat: origin.lat, lng: origin.lng },
+      destination: { lat: destination.lat, lng: destination.lng },
+      tolerance: maxFlow,
+    })
+  } catch (error) {
+    console.error('local routing engine failed', error)
+    return []
+  }
+
+  const endpoints = { origin, destination }
+  const routes = result.data.routes.map((r) => toUiRoute(r, endpoints, maxFlow))
 
   // The grid decides which streets to take; the real road network decides
   // what that actually looks like. Best-effort per route — a failure keeps
@@ -231,25 +308,14 @@ export async function planRoute({ origin, destination, maxFlow, sensors }) {
   return rankRoutes(dedupeOverlapping(routes), maxFlow)
 }
 
-/** Drop routes whose real-road geometry substantially duplicates a calmer one. */
-function dedupeOverlapping(routes) {
-  const kept = []
-  for (const route of [...routes].sort((a, b) => a.meanFlow - b.meanFlow)) {
-    const signature = new Set(
-      route.coordinates.map(([lat, lng]) => `${lat.toFixed(4)},${lng.toFixed(4)}`),
-    )
-    const duplicate = kept.some((other) => {
-      let shared = 0
-      for (const point of signature) if (other._signature.has(point)) shared++
-      return shared / Math.min(signature.size, other._signature.size) > 0.8
-    })
-    if (!duplicate) {
-      route._signature = signature
-      kept.push(route)
-    }
-  }
-  for (const route of kept) delete route._signature
-  return kept
+/**
+ * Feature 2 — label a map tap. Close to a real intersection, name it after
+ * that; otherwise it's just a dropped pin.
+ */
+export function describeTap(lat, lng) {
+  const [node, metres] = grid.snap(lat, lng)
+  const name = metres < 120 ? `Near ${node.replace('/', ' & ')}` : 'Dropped pin'
+  return { id: `pin-${lat.toFixed(5)},${lng.toFixed(5)}`, name, kind: 'pin', lat, lng }
 }
 
 export { PLACES }

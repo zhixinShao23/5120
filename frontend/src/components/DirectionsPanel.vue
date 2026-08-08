@@ -13,6 +13,7 @@ const props = defineProps({
   activeRouteId: { type: String, default: null },
   loading: { type: Boolean, default: false },
   weather: { type: Object, default: null },
+  pickingField: { type: String, default: null },
 })
 
 const emit = defineEmits([
@@ -22,6 +23,7 @@ const emit = defineEmits([
   'select-route',
   'swap',
   'close',
+  'pick-on-map',
 ])
 
 const originInput = ref(null)
@@ -73,7 +75,9 @@ onMounted(() => {
             :model-value="origin"
             placeholder="Choose starting point"
             aria-label="Starting point"
+            :picking="pickingField === 'origin'"
             @update:model-value="emit('update:origin', $event)"
+            @pick-on-map="emit('pick-on-map', 'origin')"
           />
         </div>
         <div class="directions__field">
@@ -82,7 +86,9 @@ onMounted(() => {
             :model-value="destination"
             placeholder="Choose destination"
             aria-label="Destination"
+            :picking="pickingField === 'destination'"
             @update:model-value="emit('update:destination', $event)"
+            @pick-on-map="emit('pick-on-map', 'destination')"
           />
         </div>
       </div>

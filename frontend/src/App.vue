@@ -13,6 +13,7 @@ import {
   fetchWeather,
   fetchLandmarks,
   planRoute,
+  describeTap,
   connection,
 } from './services/api.js'
 import { DEFAULT_MAX_FLOW } from './services/routing.js'
@@ -45,6 +46,8 @@ const landmarks = ref([])
 
 const focus = ref(null)
 const alert = ref(null)
+// Which field a map tap should fill next: null | 'origin' | 'destination'.
+const pickingField = ref(null)
 
 const layers = reactive({
   crowd: true,
@@ -229,6 +232,22 @@ function swapEndpoints() {
 function closePanel() {
   mode.value = 'explore'
   alert.value = null
+  pickingField.value = null
+}
+
+// --- Tap-to-pick origin/destination -----------------------------------------
+
+function startPicking(field) {
+  // Clicking the same field's pin again cancels; clicking the other field's
+  // pin switches which one the next tap fills.
+  pickingField.value = pickingField.value === field ? null : field
+}
+
+function pickLocation({ lat, lng }) {
+  const place = describeTap(lat, lng)
+  if (pickingField.value === 'origin') origin.value = place
+  else if (pickingField.value === 'destination') destination.value = place
+  pickingField.value = null
 }
 
 function toggleLayer(id) {
@@ -274,8 +293,11 @@ function applyAlert() {
       :show-landmarks="showLandmarkPins"
       :focus="focus"
       :panel-open="panelOpen"
+      :pick-mode="pickingField"
       @select-route="chooseRoute"
       @select-landmark="focusLandmark"
+      @pick-location="pickLocation"
+      @cancel-pick="pickingField = null"
     />
 
     <!-- Everything below floats over the map; the wrapper must stay
@@ -309,9 +331,11 @@ function applyAlert() {
           :active-route-id="activeRouteId"
           :loading="planning"
           :weather="weather"
+          :picking-field="pickingField"
           @select-route="chooseRoute"
           @swap="swapEndpoints"
           @close="closePanel"
+          @pick-on-map="startPicking"
         />
 
         <LandmarksPanel

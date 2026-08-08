@@ -7,9 +7,10 @@ const props = defineProps({
   modelValue: { type: Object, default: null },
   placeholder: { type: String, default: 'Search' },
   ariaLabel: { type: String, default: 'Search for a place' },
+  picking: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue', 'submit'])
+const emit = defineEmits(['update:modelValue', 'submit', 'pick-on-map'])
 
 const query = ref(props.modelValue?.name ?? '')
 const suggestions = ref([])
@@ -104,18 +105,30 @@ defineExpose({ focus: () => inputEl.value?.focus() })
       type="text"
       role="combobox"
       autocomplete="off"
+      :disabled="picking"
       :aria-label="ariaLabel"
       :aria-expanded="open"
       :aria-controls="listboxId"
-      :placeholder="placeholder"
+      :placeholder="picking ? 'Tap the map…' : placeholder"
       @keydown="onKeydown"
       @focus="open = suggestions.length > 0"
       @blur="onBlur"
     />
 
-    <button v-if="query" class="place-input__clear" title="Clear" @click="clear">
+    <button v-if="query && !picking" class="place-input__clear" title="Clear" @click="clear">
       <AppIcon name="close" :size="16" />
       <span class="sr-only">Clear</span>
+    </button>
+
+    <button
+      class="place-input__map-btn"
+      type="button"
+      :class="{ 'is-active': picking }"
+      :title="picking ? 'Cancel picking on map' : 'Pick location on map'"
+      @click="emit('pick-on-map')"
+    >
+      <AppIcon name="place" :size="16" />
+      <span class="sr-only">{{ picking ? 'Cancel picking on map' : 'Pick location on map' }}</span>
     </button>
 
     <ul v-if="open" :id="listboxId" class="place-input__list card" role="listbox">
@@ -159,6 +172,36 @@ defineExpose({ focus: () => inputEl.value?.focus() })
 
 .place-input input:focus {
   outline: none;
+}
+
+.place-input input:disabled {
+  color: var(--accent);
+  -webkit-text-fill-color: var(--accent);
+  opacity: 1;
+}
+
+.place-input__map-btn {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+.place-input__map-btn:hover {
+  background: rgba(60, 64, 67, 0.08);
+  color: var(--text-muted);
+}
+
+.place-input__map-btn.is-active {
+  color: #fff;
+  background: var(--accent);
+}
+
+.place-input__map-btn.is-active:hover {
+  background: var(--accent);
 }
 
 .place-input__clear {
