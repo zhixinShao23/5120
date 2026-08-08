@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Hush grid picker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  :root{
+    --ink:#1E3238; --deep:#2F6B63; --slate:#50808E;
+    --mist:#EDF3F0; --line:#DCE7E3; --muted:#51707C; --warn:#B4552D;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+  #app{display:flex;height:100%}
+  #map{flex:1;min-width:0}
+  #panel{width:340px;border-left:1px solid var(--line);overflow-y:auto;padding:20px;background:#fff}
+  h1{font-size:17px;margin:0 0 4px}
+  .sub{font-size:12.5px;color:var(--muted);margin:0 0 18px;line-height:1.5}
+  .step{border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px;background:#fff}
+  .step.active{border-color:var(--deep);background:var(--mist)}
+  .step.done{opacity:.62}
+  .step h2{font-size:13px;margin:0 0 6px;letter-spacing:.02em}
+  .step p{font-size:12.5px;color:var(--muted);margin:0;line-height:1.5}
+  .target{font-size:15px;font-weight:600;color:var(--deep);margin-top:8px}
+  ol{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--muted);line-height:1.8}
+  ol li.hit{color:var(--ink);font-weight:600}
+  button{font:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);
+         background:#fff;color:var(--ink);cursor:pointer}
+  button:hover{background:var(--mist)}
+  button.primary{background:var(--deep);color:#fff;border-color:var(--deep)}
+  button.primary:hover{filter:brightness(1.08)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--slate);outline-offset:2px}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  pre{background:var(--ink);color:#DFEAE6;padding:12px;border-radius:8px;font-size:11.5px;
+      overflow-x:auto;margin:10px 0 0;line-height:1.55}
+  .stat{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;
+        border-bottom:1px solid var(--line)}
+  .stat:last-child{border-bottom:0}
+  .stat b{font-variant-numeric:tabular-nums}
+  .warn{color:var(--warn)}
+  input[type=file]{font-size:12px;width:100%;margin-top:8px}
+  label.check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);margin-top:9px}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+  <div id="panel">
+    <h1>Grid picker</h1>
+    <p class="sub">Click the four corners of the Hoddle Grid. The other 41 intersections
+      are interpolated from them, exactly as <code>grid.py</code> does it.</p>
+
+    <div class="step active" id="step1">
+      <h2>1 &nbsp;Pick the corners</h2>
+      <p>Zoom in until you can see the intersection clearly, then click the middle of it.</p>
+      <ol id="cornerList">
+        <li id="c0">Spencer / Flinders</li>
+        <li id="c1">Spring / Flinders</li>
+        <li id="c2">Spencer / La Trobe</li>
+        <li id="c3">Spring / La Trobe</li>
+      </ol>
+      <div class="target" id="target">Next: Spencer / Flinders</div>
+      <div class="row">
+        <button id="undo" disabled>Undo last</button>
+        <button id="reset">Start over</button>
+      </div>
+    </div>
+
+    <div class="step" id="step2">
+      <h2>2 &nbsp;Check the fit</h2>
+      <p>The grid draws once all four corners are in. Every line should sit on a real
+        street. If one drifts, undo and re-click that corner.</p>
+      <div id="gridStats"></div>
+      <div id="layers">
+        <label class="check"><input type="checkbox" id="showSensors" checked> Sensor dots</label>
+        <label class="check"><input type="checkbox" id="showRadius" checked> Match radius</label>
+        <label class="check"><input type="checkbox" id="showNodes"> Intersection dots</label>
+        <label class="check"><input type="checkbox" id="detailedMap"> Detailed basemap</label>
+      </div>
+      <p class="hint">The plain basemap hides shop and restaurant icons. Turn on
+        detail only if you need a landmark to find an intersection.</p>
+    </div>
+
+    <div class="step" id="step3">
+      <h2>3 &nbsp;Overlay your sensors</h2>
+      <p>Load <code>data/sensors.csv</code> to see which blocks fall inside the match radius.</p>
+      <input type="file" id="csv" accept=".csv"/>
+      <label class="check">
+        <input type="range" id="radius" min="50" max="200" step="10" value="90" style="flex:1">
+        <span id="radiusLabel" style="min-width:52px;text-align:right">90 m</span>
+      </label>
+      <div id="sensorStats"></div>
+      <p class="hint">Red blocks have no sensor within the radius. They route on a
+        penalty, not a measurement.</p>
+    </div>
+
+    <div class="step" id="step4">
+      <h2>4 &nbsp;Paste into grid.py</h2>
+      <pre id="out">Pick four corners first.</pre>
+      <div class="row"><button class="primary" id="copy" disabled>Copy</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const NS = ["Spencer","King","William","Queen","Elizabeth","Swanston","Russell","Exhibition","Spring"];
+const EW = ["Flinders","Collins","Bourke","Lonsdale","LaTrobe"];
+const ORDER = [["Spencer","Flinders"],["Spring","Flinders"],["Spencer","LaTrobe"],["Spring","LaTrobe"]];
+
+const map = L.map('map').setView([-37.8136, 144.9631], 15);
+
+// Carto Positron: street names only, no shop or restaurant icons.
+const TILES = {
+  plain: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {maxZoom:19, subdomains:'abcd',
+     attribution:'&copy; OpenStreetMap contributors &copy; CARTO'}),
+  detailed: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19, attribution:'&copy; OpenStreetMap contributors'})
+};
+TILES.plain.addTo(map);
+
+const cornerLayer = L.layerGroup().addTo(map);
+const gridLayer   = L.layerGroup().addTo(map);
+const nodeLayer   = L.layerGroup().addTo(map);
+const sensorLayer = L.layerGroup().addTo(map);
+
+let corners = [];      // [{lat,lng}]
+let sensors = [];      // [{id,desc,lat,lng}]
+let nodes = {};        // "Ns/Ew" -> [lat,lng]
+
+// ---- geometry (mirrors grid.py) ----
+const R = 6371000, rad = d => d*Math.PI/180;
+function haversine(a,b,c,d){
+  const p1=rad(a),p2=rad(c),dp=rad(c-a),dl=rad(d-b);
+  const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+function buildNodes(){
+  const [sw,se,nw,ne] = corners;
+  const out = {};
+  NS.forEach((ns,i)=>{
+    const u = i/(NS.length-1);
+    EW.forEach((ew,j)=>{
+      const v = j/(EW.length-1);
+      out[`${ns}/${ew}`] = [
+        (1-u)*(1-v)*sw.lat + u*(1-v)*se.lat + (1-u)*v*nw.lat + u*v*ne.lat,
+        (1-u)*(1-v)*sw.lng + u*(1-v)*se.lng + (1-u)*v*nw.lng + u*v*ne.lng
+      ];
+    });
+  });
+  return out;
+}
+function edges(){
+  const e = [];
+  NS.forEach(ns => EW.slice(0,-1).forEach((ew,j) =>
+    e.push([`${ns}/${ew}`, `${ns}/${EW[j+1]}`, ns])));
+  EW.forEach(ew => NS.slice(0,-1).forEach((ns,i) =>
+    e.push([`${ns}/${ew}`, `${NS[i+1]}/${ew}`, ew])));
+  return e;
+}
+
+// ---- rendering ----
+function drawCorners(){
+  cornerLayer.clearLayers();
+  corners.forEach((c,i)=>{
+    L.circleMarker([c.lat,c.lng],{radius:8,color:'#2F6B63',fillColor:'#2F6B63',fillOpacity:1,weight:2})
+      .bindTooltip(ORDER[i].join(' / '),{permanent:false}).addTo(cornerLayer);
+  });
+}
+
+function drawGrid(){
+  gridLayer.clearLayers(); nodeLayer.clearLayers();
+  if(corners.length < 4){ return; }
+  nodes = buildNodes();
+
+  const radius = +document.getElementById('radius').value;
+  let lengths = [], covered = 0;
+
+  edges().forEach(([u,v])=>{
+    const a = nodes[u], b = nodes[v];
+    lengths.push(haversine(a[0],a[1],b[0],b[1]));
+    const mid = [(a[0]+b[0])/2,(a[1]+b[1])/2];
+    let near = null, best = radius;
+    for(const s of sensors){
+      const d = haversine(mid[0],mid[1],s.lat,s.lng);
+      if(d <= best){ best = d; near = s; }
+    }
+    if(near) covered++;
+    const hasSensors = sensors.length > 0;
+    L.polyline([a,b],{
+      color: hasSensors ? (near ? '#2F6B63' : '#B4552D') : '#50808E',
+      weight: 4, opacity: .82
+    }).bindTooltip(near ? `${u} → ${v}<br>${near.desc}` : `${u} → ${v}<br>no sensor within ${radius} m`)
+      .addTo(gridLayer);
+  });
+
+  if(document.getElementById('showNodes').checked){
+    Object.entries(nodes).forEach(([name,ll])=>{
+      L.circleMarker(ll,{radius:3.5,color:'#1E3238',fillColor:'#fff',fillOpacity:1,weight:1.5})
+        .bindTooltip(name).addTo(nodeLayer);
+    });
+  }
+
+  const mean = lengths.reduce((x,y)=>x+y,0)/lengths.length;
+  const flag = (mean < 200 || mean > 320) ? ' class="warn"' : '';
+  document.getElementById('gridStats').innerHTML = `
+    <div class="stat"><span>Intersections</span><b>${Object.keys(nodes).length}</b></div>
+    <div class="stat"><span>Blocks</span><b>${lengths.length}</b></div>
+    <div class="stat"><span>Block length, mean</span><b${flag}>${mean.toFixed(0)} m</b></div>
+    <div class="stat"><span>Shortest / longest</span><b>${Math.min(...lengths).toFixed(0)} / ${Math.max(...lengths).toFixed(0)} m</b></div>`;
+
+  if(sensors.length){
+    const pct = (100*covered/lengths.length).toFixed(1);
+    document.getElementById('sensorStats').innerHTML = `
+      <div class="stat"><span>Sensors loaded</span><b>${sensors.length}</b></div>
+      <div class="stat"><span>Blocks with a sensor</span><b>${covered} of ${lengths.length}</b></div>
+      <div class="stat"><span>Coverage</span><b${pct<50?' class="warn"':''}>${pct}%</b></div>`;
+  }
+  writeOut();
+}
+
+function drawSensors(){
+  sensorLayer.clearLayers();
+  const showDots   = document.getElementById('showSensors').checked;
+  const showRadius = document.getElementById('showRadius').checked;
+  if(!showDots && !showRadius) return;
+
+  const radius = +document.getElementById('radius').value;
+  sensors.forEach(s=>{
+    if(showRadius){
+      L.circle([s.lat,s.lng],{radius, color:'#50808E', weight:1, opacity:.18,
+        fillColor:'#50808E', fillOpacity:.04, interactive:false}).addTo(sensorLayer);
+    }
+    if(showDots){
+      L.circleMarker([s.lat,s.lng],{radius:2.5,color:'#50808E',fillColor:'#50808E',
+        fillOpacity:.85,weight:0}).bindTooltip(`${s.id} — ${s.desc}`).addTo(sensorLayer);
+    }
+  });
+}
+
+function writeOut(){
+  if(corners.length < 4){ return; }
+  const f = n => n.toFixed(5);
+  document.getElementById('out').textContent =
+`CORNERS = {
+    ("Spencer", "Flinders"): (${f(corners[0].lat)}, ${f(corners[0].lng)}),
+    ("Spring",  "Flinders"): (${f(corners[1].lat)}, ${f(corners[1].lng)}),
+    ("Spencer", "LaTrobe"):  (${f(corners[2].lat)}, ${f(corners[2].lng)}),
+    ("Spring",  "LaTrobe"):  (${f(corners[3].lat)}, ${f(corners[3].lng)}),
+}
+
+SENSOR_RADIUS_M = ${(+document.getElementById('radius').value).toFixed(1)}`;
+  document.getElementById('copy').disabled = false;
+}
+
+function refreshSteps(){
+  const n = corners.length;
+  document.getElementById('step1').className = 'step' + (n<4 ? ' active' : ' done');
+  document.getElementById('step2').className = 'step' + (n===4 ? ' active' : '');
+  ORDER.forEach((c,i)=> document.getElementById('c'+i).className = i<n ? 'hit' : '');
+  document.getElementById('target').textContent =
+    n<4 ? 'Next: ' + ORDER[n].join(' / ') : 'All four corners set.';
+  document.getElementById('undo').disabled = n===0;
+}
+
+// ---- events ----
+map.on('click', e => {
+  if(corners.length >= 4) return;
+  corners.push({lat:e.latlng.lat, lng:e.latlng.lng});
+  drawCorners(); refreshSteps(); drawGrid();
+});
+
+document.getElementById('undo').onclick = () => {
+  corners.pop(); drawCorners(); refreshSteps(); drawGrid();
+  if(corners.length < 4){
+    gridLayer.clearLayers(); nodeLayer.clearLayers();
+    document.getElementById('out').textContent = 'Pick four corners first.';
+    document.getElementById('copy').disabled = true;
+  }
+};
+
+document.getElementById('reset').onclick = () => {
+  corners = []; drawCorners(); refreshSteps();
+  gridLayer.clearLayers(); nodeLayer.clearLayers();
+  document.getElementById('gridStats').innerHTML = '';
+  document.getElementById('out').textContent = 'Pick four corners first.';
+  document.getElementById('copy').disabled = true;
+};
+
+document.getElementById('showNodes').onchange = drawGrid;
+document.getElementById('showSensors').onchange = drawSensors;
+document.getElementById('showRadius').onchange = drawSensors;
+document.getElementById('detailedMap').onchange = e => {
+  map.removeLayer(e.target.checked ? TILES.plain : TILES.detailed);
+  map.addLayer(e.target.checked ? TILES.detailed : TILES.plain);
+};
+
+document.getElementById('radius').oninput = e => {
+  document.getElementById('radiusLabel').textContent = e.target.value + ' m';
+  drawSensors(); drawGrid();
+};
+
+document.getElementById('copy').onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById('out').textContent);
+  const b = document.getElementById('copy');
+  b.textContent = 'Copied'; setTimeout(()=>b.textContent='Copy', 1400);
+};
+
+// CSV with quoted-field support — sensor_description often contains commas
+function parseCSV(text){
+  const rows = []; let row = [], cell = '', q = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(q){
+      if(ch === '"' && text[i+1] === '"'){ cell += '"'; i++; }
+      else if(ch === '"'){ q = false; }
+      else cell += ch;
+    } else if(ch === '"'){ q = true; }
+    else if(ch === ','){ row.push(cell); cell = ''; }
+    else if(ch === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; }
+    else if(ch !== '\r'){ cell += ch; }
+  }
+  if(cell || row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+document.getElementById('csv').onchange = ev => {
+  const file = ev.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const rows = parseCSV(reader.result).filter(r => r.length > 1);
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const idx = n => head.indexOf(n);
+    const iId  = idx('location_id') >= 0 ? idx('location_id') : idx('sensor_id');
+    const iLat = idx('latitude'), iLng = idx('longitude');
+    const iDesc = idx('sensor_description') >= 0 ? idx('sensor_description') : idx('sensor_name');
+    const iSt  = idx('status');
+
+    if(iLat < 0 || iLng < 0){
+      alert('No latitude/longitude columns found. Header row read as:\n' + head.join(', '));
+      return;
+    }
+
+    sensors = rows.slice(1)
+      .filter(r => iSt < 0 || (r[iSt]||'').trim().toUpperCase().startsWith('A'))
+      .map(r => ({
+        id: r[iId], desc: (r[iDesc]||'').trim(),
+        lat: parseFloat(r[iLat]), lng: parseFloat(r[iLng])
+      }))
+      .filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+
+    drawSensors(); drawGrid();
+  };
+  reader.readAsText(file);
+};
+
+refreshSteps();
+</script>
+</body>
+</html>
