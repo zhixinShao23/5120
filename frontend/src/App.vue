@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import MapView from './components/MapView.vue'
 import SearchBar from './components/SearchBar.vue'
 import DirectionsPanel from './components/DirectionsPanel.vue'
@@ -8,10 +8,12 @@ import LiveStatusCard from './components/LiveStatusCard.vue'
 import CategoryChips from './components/CategoryChips.vue'
 import AlertBanner from './components/AlertBanner.vue'
 import CrowdLegend from './components/CrowdLegend.vue'
+import CoverageDebugPanel from './components/CoverageDebugPanel.vue'
 import {
   fetchLiveCrowd,
   fetchWeather,
   fetchLandmarks,
+  fetchRefuges,
   planRoute,
   describeTap,
   connection,
@@ -37,12 +39,16 @@ const activeRouteId = ref(null)
 // priority would leave the map highlighting yesterday's recommendation.
 const userPickedRoute = ref(false)
 const planning = ref(false)
+// True once a plan has been requested for the current origin/destination —
+// gates the results panel between "ready to search" and "here's what we found".
+const hasPlanned = ref(false)
 
 const sensors = ref([])
 const observedAt = ref(null)
 const isLive = ref(false)
 const weather = ref(null)
 const landmarks = ref([])
+const refuges = ref([])
 
 const focus = ref(null)
 const alert = ref(null)
@@ -96,6 +102,7 @@ onMounted(async () => {
     refreshCrowd(),
     fetchWeather().then((w) => (weather.value = w)),
     fetchLandmarks().then((l) => (landmarks.value = l)),
+    fetchRefuges().then((r) => (refuges.value = r)),
   ])
   pollTimer = setInterval(refreshCrowd, POLL_INTERVAL_MS)
 
@@ -105,6 +112,13 @@ onMounted(async () => {
     origin.value = DEMO_JOURNEY.origin
     destination.value = DEMO_JOURNEY.destination
     mode.value = 'directions'
+    // The origin/destination watcher below resets hasPlanned and clears
+    // routes, but it's queued rather than synchronous — wait for it to
+    // flush before planning, or its reset lands after and wipes this out.
+    await nextTick()
+    // The demo is a worked example, not a user pick — show it immediately
+    // rather than waiting on a "Find route" click nobody knows to make yet.
+    replan()
   }
 })
 
@@ -131,6 +145,7 @@ async function replan({ silent = false } = {}) {
     return
   }
 
+  hasPlanned.value = true
   if (!silent) planning.value = true
 
   try {
@@ -164,16 +179,36 @@ async function replan({ silent = false } = {}) {
   }
 }
 
+// A new origin or destination is a new question — clear the old answer and
+// wait for an explicit "Find route" instead of planning automatically, so
+// picking a point on the map (or search) doesn't fire a plan on every click.
 watch(
-  [origin, destination, maxFlow],
+  [origin, destination],
   () => {
-    // A new journey or a changed preference resets the manual choice — the
-    // user is asking a new question and should get the new answer.
     userPickedRoute.value = false
-    replan()
+    hasPlanned.value = false
+    routes.value = []
+    activeRouteId.value = null
   },
   { deep: true },
 )
+
+// The comfort slider re-scores the journey that's already showing, so that
+// one still updates live rather than needing another click.
+watch(maxFlow, () => {
+  if (hasPlanned.value) replan()
+})
+
+function findRoute() {
+  replan()
+}
+
+// Debug: switching the sensor-matching method re-scores whatever route is
+// already showing, so the effect is visible immediately rather than only on
+// the next unrelated replan.
+function onMatchMethodChanged() {
+  if (hasPlanned.value) replan()
+}
 
 /**
  * Live re-scoring. When the sensors move we re-plan quietly, and if the
@@ -287,10 +322,12 @@ function applyAlert() {
       :routes="routes"
       :active-route-id="activeRouteId"
       :landmarks="visibleLandmarks"
+      :refuges="refuges"
       :origin="origin"
       :destination="destination"
       :show-crowd="layers.crowd"
       :show-landmarks="showLandmarkPins"
+      :show-refuges="layers.quiet"
       :focus="focus"
       :panel-open="panelOpen"
       :pick-mode="pickingField"
@@ -332,10 +369,12 @@ function applyAlert() {
           :loading="planning"
           :weather="weather"
           :picking-field="pickingField"
+          :has-planned="hasPlanned"
           @select-route="chooseRoute"
           @swap="swapEndpoints"
           @close="closePanel"
           @pick-on-map="startPicking"
+          @find-route="findRoute"
         />
 
         <LandmarksPanel
@@ -361,6 +400,7 @@ function applyAlert() {
       </div>
 
       <CrowdLegend v-if="layers.crowd" class="hud__legend" />
+      <CoverageDebugPanel class="hud__debug" @changed="onMatchMethodChanged" />
     </div>
   </div>
 </template>
@@ -417,6 +457,12 @@ function applyAlert() {
   position: absolute;
   right: 12px;
   top: 64px;
+}
+
+.hud__debug {
+  position: absolute;
+  right: 12px;
+  bottom: 24px;
 }
 
 @media (max-width: 900px) {

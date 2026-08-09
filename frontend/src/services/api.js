@@ -19,18 +19,23 @@
  */
 
 import { PLACES, LANDMARKS, WEATHER } from '@/mock/data.js'
-import { rankRoutes, WALK_SPEED_MPS } from './routing.js'
+import { rankRoutes, WALK_SPEED_MPS, flowBand } from './routing.js'
 import { matchToRoads } from './realRoads.js'
 import * as grid from './engine/grid.js'
 import * as localApi from './engine/localApi.js'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
+// No default: an unset VITE_API_BASE means "no backend deployed yet", and
+// request() below skips the attempt entirely rather than firing a request
+// that's guaranteed to 404 on every call.
+const API_BASE = import.meta.env.VITE_API_BASE ?? null
 const REQUEST_TIMEOUT_MS = 4000
 
 /** Tracks whether the real `/api` backend answered, so the UI can say so honestly. */
 export const connection = { live: false, lastError: null }
 
 async function request(path, options = {}) {
+  if (!API_BASE) return null
+
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
   try {
@@ -51,18 +56,6 @@ async function request(path, options = {}) {
   } finally {
     clearTimeout(timer)
   }
-}
-
-// ---------------------------------------------------------------------------
-// Crowd level bands — thresholds match the old mock's so CrowdLegend/MapView
-// don't need to change.
-// ---------------------------------------------------------------------------
-
-function levelFor(normalised) {
-  if (normalised < 0.3) return 'low'
-  if (normalised < 0.55) return 'moderate'
-  if (normalised < 0.75) return 'high'
-  return 'severe'
 }
 
 /** Previous poll's heatmap points, keyed by sensor id — for trend arrows. */
@@ -134,7 +127,7 @@ function waypointsFromRoute(route, endpoints) {
   return waypoints
 }
 
-function toUiRoute(route, endpoints, maxFlow) {
+function toUiRoute(route, endpoints, maxFlow, assumedDensity) {
   const meta = PRESET_META[route.id] ?? { label: route.id, accent: '#5f6368' }
 
   const coordinates = [...route.coords]
@@ -145,6 +138,15 @@ function toUiRoute(route, endpoints, maxFlow) {
     ? route.steps.find((s) => s.density === route.peak_density)
     : null
 
+  // A route with no sensor coverage at all has peak_density === null. That
+  // must NOT read as "0 people/min" — an unmeasured street is not a
+  // confirmed-quiet one, and treating it as such let a fully-unverified
+  // detour outrank a genuinely-measured, genuinely-compliant route. Fall
+  // back to the same conservative "what the city is typically doing right
+  // now" estimate the pathfinder itself used to price unmeasured blocks.
+  const verified = route.coverage_pct > 0
+  const peakFlow = route.peak_density ?? assumedDensity
+
   return {
     id: route.id,
     presetId: route.id,
@@ -154,9 +156,10 @@ function toUiRoute(route, endpoints, maxFlow) {
     waypoints: waypointsFromRoute(route, endpoints),
     distanceM: route.total_m,
     durationMin: route.total_minutes,
-    peakFlow: route.peak_density ?? 0,
+    peakFlow,
     peakAt: peakStep?.street ?? null,
-    meanFlow: route.mean_density ?? 0,
+    meanFlow: route.mean_density ?? peakFlow,
+    verified,
     warnings: warningsFromBlocks(route.steps, maxFlow),
     steps: stepsFromBlocks(route.steps),
     via: viaFromBlocks(route.steps),
@@ -209,7 +212,7 @@ export async function fetchLiveCrowd() {
       lng: p.lng,
       count: p.density,
       normalised,
-      level: levelFor(normalised),
+      level: flowBand(p.density).id,
       trend: delta > 0.015 ? 'rising' : delta < -0.015 ? 'falling' : 'steady',
       updatedAt: now.toISOString(),
     }
@@ -256,6 +259,22 @@ export async function fetchLandmarks() {
   return [...landmarks].sort((a, b) => a.sensoryScore - b.sensoryScore)
 }
 
+/** Sensory refuges — parks, quiet indoor spaces, etc. from the council POI dataset. */
+export async function fetchRefuges() {
+  const data = await request('/refuges')
+  if (data?.refuges) return data.refuges
+
+  const result = await localApi.allRefuges()
+  return result.data.refuges.map((r) => ({
+    id: r.poiId,
+    name: r.name,
+    category: r.subTheme,
+    lat: r.lat,
+    lng: r.lng,
+    noiseLevel: r.noiseLevel,
+  }))
+}
+
 /**
  * Feature 2 — recommended routes.
  *
@@ -285,7 +304,8 @@ export async function planRoute({ origin, destination, maxFlow }) {
   }
 
   const endpoints = { origin, destination }
-  const routes = result.data.routes.map((r) => toUiRoute(r, endpoints, maxFlow))
+  const assumedDensity = result.meta.assumed_density
+  const routes = result.data.routes.map((r) => toUiRoute(r, endpoints, maxFlow, assumedDensity))
 
   // The grid decides which streets to take; the real road network decides
   // what that actually looks like. Best-effort per route — a failure keeps

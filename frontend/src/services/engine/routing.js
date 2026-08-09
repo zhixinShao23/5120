@@ -294,6 +294,11 @@ export function plan(origin, destination, tolerance, loads, source = 'unknown') 
       confidence,
       basis: `${cov}% of the calm route has live sensor coverage`,
       coverage_pct: cov,
+      // What an unmeasured block is assumed to cost — the same number the
+      // pathfinder itself used to price them. A route with 0% sensor
+      // coverage has a `peak_density` of null; callers should treat this as
+      // the honest stand-in for "unknown, don't assume it's quiet."
+      assumed_density: Math.round(scoring.assumedDensity(loads)),
       tolerance,
       attribution: 'City of Melbourne, CC BY 4.0',
     },
@@ -312,7 +317,7 @@ export function blocks(loads) {
   const out = []
   for (const [u, v] of grid.EDGES) {
     const density = scoring.blockDensity(u, v, loads)
-    const sids = grid.sensorsForEdge(u, v)
+    const nearby = grid.sensorsForEdge(u, v)
     const street = grid.edgeStreet(u, v)
     out.push({
       from: u,
@@ -323,8 +328,10 @@ export function blocks(loads) {
       length_m: grid.edgeLength(u, v),
       density,
       rating: scoring.rate(density),
-      sensors: sids,
-      sensor_names: sids.map((s) => grid.SENSORS.get(s)?.description),
+      // Every sensor within range, not just the one that won `density` —
+      // scoring.busiestSensor() picks the worst reading among these.
+      sensors: nearby.map((s) => s.sensorId),
+      sensor_names: nearby.map((s) => grid.SENSORS.get(s.sensorId)?.description),
     })
   }
   return {
