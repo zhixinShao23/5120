@@ -1,21 +1,8 @@
 /**
- * The single seam between the UI and the backend.
+ * The single seam between the UI and the backend/database.
  *
- * Every call tries the real endpoint first and falls back to the local
- * routing engine if it is unreachable or errors. That engine
- * (`services/engine/`) is a client-side port of the Python backend
- * (grid.py / scoring.py / crowd.py / routing.py / main.py) — real Hoddle
- * Grid intersections, real pedestrian sensor data, the same crowd-cost
- * model — so the app runs today with no server at all, and moves to
- * whatever the team deploys the moment `VITE_API_BASE` points at it, with
- * no component changes.
- *
- * Expected endpoints (documented here so the backend has a contract to hit):
- *   GET  /api/crowd/live                     -> { sensors: Sensor[], observedAt }
- *   GET  /api/weather/current                -> Weather
- *   GET  /api/places?q=                      -> { places: Place[] }
- *   GET  /api/landmarks                      -> { landmarks: Landmark[] }
- *   POST /api/routes/plan { origin, destination, maxFlow } -> { routes: Route[] }
+ * Every call tries the real endpoint first (connected to AWS RDS PostgreSQL)
+ * and falls back to the local routing engine if it is unreachable or errors.
  */
 
 import { PLACES, LANDMARKS, WEATHER } from '@/mock/data.js'
@@ -27,9 +14,14 @@ import * as localApi from './engine/localApi.js'
 const API_BASE = import.meta.env.VITE_API_BASE ?? '/api'
 const REQUEST_TIMEOUT_MS = 4000
 
-/** Tracks whether the real `/api` backend answered, so the UI can say so honestly. */
-export const connection = { live: false, lastError: null }
+/** Tracks whether the live backend database answered, so the UI can report status. */
+export const connection = { 
+  live: false, 
+  source: 'local-fallback', 
+  lastError: null 
+}
 
+/** Generic fetch handler targeting the AWS RDS-backed API */
 async function request(path, options = {}) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
@@ -41,12 +33,20 @@ async function request(path, options = {}) {
     })
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
     const data = await response.json()
+    
+    // Update live connection flags when Database/Backend succeeds
     connection.live = true
+    connection.source = 'database'
     connection.lastError = null
+    
+    console.log(`[API -> Database Success] Loaded ${path} from live backend.`)
     return data
   } catch (error) {
     connection.live = false
+    connection.source = 'local-fallback'
     connection.lastError = error.message
+    
+    console.warn(`[API -> Database Fallback] ${path} failed (${error.message}). Reverting to local engine.`)
     return null
   } finally {
     clearTimeout(timer)
@@ -54,8 +54,7 @@ async function request(path, options = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Crowd level bands — thresholds match the old mock's so CrowdLegend/MapView
-// don't need to change.
+// Helper functions
 // ---------------------------------------------------------------------------
 
 function levelFor(normalised) {
@@ -65,15 +64,7 @@ function levelFor(normalised) {
   return 'severe'
 }
 
-/** Previous poll's heatmap points, keyed by sensor id — for trend arrows. */
 let previousPoints = new Map()
-
-// ---------------------------------------------------------------------------
-// Route shape adapter — the engine speaks the Python backend's vocabulary
-// (`distance_m`, `peak_density`, `steps: [{from, to, street, density}]`);
-// the Vue components speak the UI's (`distanceM`, `peakFlow`,
-// `steps: [{instruction, detail, metres}]`). This is the seam between them.
-// ---------------------------------------------------------------------------
 
 const PRESET_META = {
   quiet: { label: 'Quietest', accent: '#12805c' },
@@ -81,7 +72,6 @@ const PRESET_META = {
   fast: { label: 'Fastest', accent: '#e8710a' },
 }
 
-/** Consecutive same-street blocks collapse into one turn-by-turn instruction. */
 function stepsFromBlocks(blockSteps) {
   const out = []
   for (const s of blockSteps) {
@@ -99,7 +89,6 @@ function stepsFromBlocks(blockSteps) {
   return out.map((s) => ({ ...s, metres: Math.round(s.metres) }))
 }
 
-/** Every measured block over the user's limit becomes a warning. */
 function warningsFromBlocks(blockSteps, limit) {
   return blockSteps
     .filter((s) => s.measured && s.density > limit)
@@ -111,7 +100,6 @@ function warningsFromBlocks(blockSteps, limit) {
     }))
 }
 
-/** "via Little Collins St & Russell St" — the streets that define the route. */
 function viaFromBlocks(blockSteps) {
   const streets = []
   for (const s of blockSteps) {
@@ -120,7 +108,6 @@ function viaFromBlocks(blockSteps) {
   return streets.slice(0, 3).join(' & ')
 }
 
-/** Turn points where the street changes — for snapping onto real roads. */
 function waypointsFromRoute(route, endpoints) {
   const waypoints = [endpoints.origin ?? { lat: route.coords[0][0], lng: route.coords[0][1] }]
   for (let i = 1; i < route.steps.length; i++) {
@@ -163,7 +150,6 @@ function toUiRoute(route, endpoints, maxFlow) {
   }
 }
 
-/** Drop routes whose real-road geometry substantially duplicates a calmer one. */
 function dedupeOverlapping(routes) {
   const kept = []
   for (const route of [...routes].sort((a, b) => a.meanFlow - b.meanFlow)) {
@@ -185,16 +171,31 @@ function dedupeOverlapping(routes) {
 }
 
 // ---------------------------------------------------------------------------
-// Public API
+// Public API Exports
 // ---------------------------------------------------------------------------
 
-/** Feature 1 — live crowd levels for the map. */
+/** Direct health check method to test Database connection */
+export async function checkDatabaseHealth() {
+  const data = await request('/health')
+  return {
+    isDatabaseLive: connection.live,
+    details: data
+  }
+}
+
+/** Feature 1 — live crowd levels from database or local heatmap engine. */
 export async function fetchLiveCrowd() {
   const data = await request('/crowd/live')
   if (data?.sensors) {
-    return { sensors: data.sensors, observedAt: data.observedAt ?? new Date().toISOString(), live: connection.live }
+    return { 
+      sensors: data.sensors, 
+      observedAt: data.observedAt ?? new Date().toISOString(), 
+      live: true, 
+      source: 'database' 
+    }
   }
 
+  // Fallback engine execution
   const now = new Date()
   const hm = await localApi.heatmap()
   const sensors = hm.data.points.map((p) => {
@@ -216,13 +217,7 @@ export async function fetchLiveCrowd() {
   })
   previousPoints = new Map(hm.data.points.map((p) => [p.id, p]))
 
-  // No real `/api` backend to report through `request()`, but the engine's
-  // own crowd source (live government feed vs. cached snapshot) is the
-  // thing "Live City of Melbourne data" is actually meant to reflect.
-  connection.live = hm.meta.source === 'live'
-  connection.lastError = null
-
-  return { sensors, observedAt: now.toISOString(), live: connection.live }
+  return { sensors, observedAt: now.toISOString(), live: false, source: 'local-fallback' }
 }
 
 export async function fetchWeather() {
@@ -230,7 +225,7 @@ export async function fetchWeather() {
   return data ?? WEATHER
 }
 
-/** Autocomplete over known destinations. */
+/** Search places stored in RDS database or fallback local list */
 export async function searchPlaces(query) {
   const trimmed = query.trim()
   if (!trimmed) return []
@@ -240,7 +235,6 @@ export async function searchPlaces(query) {
 
   const needle = trimmed.toLowerCase()
   return PLACES.filter((p) => p.name.toLowerCase().includes(needle))
-    // Prefix matches are far more likely to be what was meant.
     .sort((a, b) => {
       const aPrefix = a.name.toLowerCase().startsWith(needle) ? 0 : 1
       const bPrefix = b.name.toLowerCase().startsWith(needle) ? 0 : 1
@@ -249,20 +243,14 @@ export async function searchPlaces(query) {
     .slice(0, 6)
 }
 
-/** Feature 3 — potential landmarks, calmest first. */
+/** Feature 3 — fetch landmarks directly from RDS database */
 export async function fetchLandmarks() {
   const data = await request('/landmarks')
   const landmarks = data?.landmarks ?? LANDMARKS
   return [...landmarks].sort((a, b) => a.sensoryScore - b.sensoryScore)
 }
 
-/**
- * Feature 2 — recommended routes.
- *
- * `maxFlow` is the user's comfort ceiling in people per minute, passed
- * straight through to the engine as its `tolerance` — no point on the
- * recommended route should exceed it.
- */
+/** Feature 2 — plan route via RDS database engine */
 export async function planRoute({ origin, destination, maxFlow }) {
   const data = await request('/routes/plan', {
     method: 'POST',
@@ -287,9 +275,6 @@ export async function planRoute({ origin, destination, maxFlow }) {
   const endpoints = { origin, destination }
   const routes = result.data.routes.map((r) => toUiRoute(r, endpoints, maxFlow))
 
-  // The grid decides which streets to take; the real road network decides
-  // what that actually looks like. Best-effort per route — a failure keeps
-  // the grid geometry rather than losing the option.
   await Promise.all(
     routes.map(async (route) => {
       const matched = await matchToRoads(route.waypoints)
@@ -301,17 +286,9 @@ export async function planRoute({ origin, destination, maxFlow }) {
     }),
   )
 
-  // Distinct grid corridors can collapse onto the same real streets. Showing
-  // the same road twice as two "options" is dishonest — keep the calmer copy.
-  // Re-rank afterwards: durations changed, so "fastest under the limit" must
-  // be re-decided against the real distances.
   return rankRoutes(dedupeOverlapping(routes), maxFlow)
 }
 
-/**
- * Feature 2 — label a map tap. Close to a real intersection, name it after
- * that; otherwise it's just a dropped pin.
- */
 export function describeTap(lat, lng) {
   const [node, metres] = grid.snap(lat, lng)
   const name = metres < 120 ? `Near ${node.replace('/', ' & ')}` : 'Dropped pin'
