@@ -101,7 +101,7 @@ export async function blocks() {
 /** Feed freshness and grid coverage. */
 export async function health() {
   const [loads, source, age] = await currentLoads()
-  const covered = [...grid.EDGE_SENSORS.values()].filter((s) => s.length > 0).length
+  const covered = grid.EDGES.filter(([u, v]) => grid.sensorsForEdge(u, v).length > 0).length
   return {
     status: loads.size ? 'ok' : 'degraded',
     source,
@@ -117,4 +117,16 @@ export async function health() {
 /** Nearby sensory refuge locations, if the POI data is available. */
 export async function refuges({ node, lat, lng, radiusM = 800.0 } = {}) {
   return routing.findRefuges({ node, lat, lng, radiusM })
+}
+
+/** Every sensory refuge in the mapped area, for drawing the whole layer. */
+export async function allRefuges() {
+  const list = grid.allRefuges()
+  return { data: { refuges: list }, meta: { count: list.length } }
+}
+
+/** The cached crowd loads Map, for debug tooling that needs raw per-sensor counts. */
+export async function debugLoads() {
+  const [loads] = await currentLoads()
+  return loads
 }

@@ -26,12 +26,22 @@ export const WALK_SPEED_MPS = 1.35 // ~4.9 km/h, an unhurried pace
  */
 const ABSOLUTE_MAX_DETOUR = 0.8
 
-/** Colour band for a people-per-minute figure. Matches the map legend. */
+/**
+ * The single source of truth for people-per-minute colour bands — every
+ * consumer (the crowd map dots, the legend, the route peak bar, the comfort
+ * slider) reads from this same table instead of keeping its own copy, so a
+ * threshold change here is a threshold change everywhere.
+ */
+export const FLOW_BANDS = [
+  { id: 'quiet', label: 'Quiet', colour: '#12805c', ceiling: 30 },
+  { id: 'moderate', label: 'Moderate', colour: '#b8860b', ceiling: 100 },
+  { id: 'busy', label: 'Busy', colour: '#e8710a', ceiling: 150 },
+  { id: 'packed', label: 'Very busy', colour: '#d93025', ceiling: Infinity },
+]
+
+/** Colour band for a people-per-minute figure. */
 export function flowBand(flow) {
-  if (flow < 60) return { id: 'quiet', label: 'Quiet', colour: '#12805c' }
-  if (flow < 110) return { id: 'moderate', label: 'Moderate', colour: '#b8860b' }
-  if (flow < 150) return { id: 'busy', label: 'Busy', colour: '#e8710a' }
-  return { id: 'packed', label: 'Very busy', colour: '#d93025' }
+  return FLOW_BANDS.find((band) => flow < band.ceiling) ?? FLOW_BANDS[FLOW_BANDS.length - 1]
 }
 
 /**

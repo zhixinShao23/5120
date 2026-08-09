@@ -62,15 +62,15 @@ export function assumedDensity(loads) {
 
 /**
  * [sensorId, load] for the WORST reading on this block, or null. A block can
- * have several sensors in range, and the nearest is not necessarily the one
- * that matters — the worst reading is the one the walker will experience.
+ * have several sensors within range, and the nearest is not necessarily the
+ * one that matters — the worst reading is the one the walker will experience.
  */
 export function busiestSensor(u, v, loads) {
   let best = null
-  for (const sid of grid.sensorsForEdge(u, v)) {
-    const load = loads.get(sid)
+  for (const { sensorId } of grid.sensorsForEdge(u, v)) {
+    const load = loads.get(sensorId)
     if (load == null) continue
-    if (best == null || load.total > best[1].total) best = [sid, load]
+    if (best == null || load.total > best[1].total) best = [sensorId, load]
   }
   return best
 }

@@ -1,0 +1,85 @@
+﻿poi_id,feature_name,sub_theme,latitude,longitude,noise_proxy_level
+POI0003,North Melbourne Recreation Reserve,Informal Outdoor Facility (Park/Garden/Reserve),-37.79883453,144.9414521,low
+POI0004,Princes Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.78701617,144.9611152,low
+POI0007,Argyle Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.80314806,144.9657613,low
+POI0010,Mercy Private Hospital,Medical Services,-37.81189681,144.9844357,low
+POI0013,Kings Domain,Informal Outdoor Facility (Park/Garden/Reserve),-37.82552398,144.9741079,low
+POI0018,Federation Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.81785166,144.9689636,low
+POI0019,Royal Womens Hospital,Public Hospital,-37.79888925,144.9548973,low
+POI0022,Flagstaff Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.81112229,144.9546961,low
+POI0024,Westgate Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.83149186,144.9088248,low
+POI0025,St Mary's Anglican Church,Church,-37.80316637,144.9537615,low
+POI0027,Newmarket Reserve,Informal Outdoor Facility (Park/Garden/Reserve),-37.78784733,144.9229721,low
+POI0028,J.J Holland Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.79823588,144.9238371,low
+POI0029,Royal Childrens Hospital,Public Hospital,-37.79420608,144.9500483,low
+POI0031,Fitzroy Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.81296163,144.9804557,low
+POI0032,Peter Maccallum Cancer Institute,Public Hospital,-37.81147667,144.9774009,low
+POI0033,The Melbourne Athenaeum Library,Library,-37.81488558,144.9672913,low
+POI0034,Romanian Orthodox,Church,-37.80523073,144.9669864,low
+POI0035,St Michaels,Church,-37.79405127,144.9453995,low
+POI0036,Ukranian Catholic Cathedral,Church,-37.79630846,144.9443135,low
+POI0037,The Parish of Christ Church South Yarra,Church,-37.83862705,144.9860094,low
+POI0043,Richmond Football Club,Informal Outdoor Facility (Park/Garden/Reserve),-37.821674,144.9881563,low
+POI0050,St Augustines Church,Church,-37.81697414,144.954862,low
+POI0051,Melbourne Unitarian Church,Church,-37.81144878,144.9846649,low
+POI0052,Our Lady of Lebanon Church,Church,-37.80257665,144.9693347,low
+POI0053,St Alban Anglican Church,Church,-37.79421695,144.9416145,low
+POI0056,The Royal Victorian Eye & Ear Hospital,Public Hospital,-37.80875228,144.9762683,low
+POI0061,Royal Botanic Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.83066316,144.9808504,low
+POI0063,Darling Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.81299207,144.9890626,low
+POI0068,Parliament Reserve,Informal Outdoor Facility (Park/Garden/Reserve),-37.80985262,144.9734622,low
+POI0076,Macarthur Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.79833187,144.9715141,low
+POI0083,Epworth Freemasons Hospital,Private Hospital,-37.81097107,144.9837001,low
+POI0084,Church of Christ,Church,-37.81045241,144.9638892,low
+POI0085,Holy Trinity,Church,-37.81406671,144.9831973,low
+POI0086,Holy Rosary,Church,-37.79480874,144.9283621,low
+POI0091,Shrine of Rembrance Reserve,Informal Outdoor Facility (Park/Garden/Reserve),-37.8320734,144.9736284,low
+POI0097,St James Church,Church,-37.81012812,144.9524686,low
+POI0098,St Michael's Uniting Church,Church,-37.81438513,144.969174,low
+POI0099,East Melbourne Synagogue,Synagogue,-37.80911373,144.9742219,low
+POI0101,Treasury Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.81439936,144.9759523,low
+POI0104,Melbourne International Karting Complex,Vacant Land - Undeveloped Site,-37.83107464,144.9138229,low
+POI0105,St Patricks Cathedral,Church,-37.8101141,144.9759015,low
+POI0108,Queen Victoria Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.82163812,144.9710495,low
+POI0109,New Quay,Informal Outdoor Facility (Park/Garden/Reserve),-37.81521788,144.9416179,low
+POI0124,Sandridge Rail Bridge,Informal Outdoor Facility (Park/Garden/Reserve),-37.8201763,144.9629811,low
+POI0126,All Nations Uniting Church,Church,-37.79591553,144.9689811,low
+POI0131,Birrarung Marr,Informal Outdoor Facility (Park/Garden/Reserve),-37.81806108,144.9731467,low
+POI0138,Welsh Presbyterian Church,Church,-37.81044788,144.9598733,low
+POI0139,Lutheran Trinity Church,Church,-37.81097571,144.9757295,low
+POI0140,St Johns Lutheran Church,Church,-37.82093997,144.9671211,low
+POI0143,University Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.80041071,144.9603983,low
+POI0144,Melbourne General Cemetery,Cemetery,-37.789189,144.965786,low
+POI0152,Docklands Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82099568,144.9467817,low
+POI0154,Point Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82335227,144.9421023,low
+POI0156,Alexandra Gardens,Informal Outdoor Facility (Park/Garden/Reserve),-37.82060514,144.9717961,low
+POI0165,Piazza Italia,Informal Outdoor Facility (Park/Garden/Reserve),-37.80251642,144.9658631,low
+POI0166,Murchinson Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.8002735,144.9730593,low
+POI0169,St Francis Church,Church,-37.81188478,144.9624226,low
+POI0170,Greek Orthodox Church,Church,-37.80880647,144.9782591,low
+POI0171,North Melbourne Uniting,Church,-37.80355385,144.9476715,low
+POI0172,Carlton Gardens North,Informal Outdoor Facility (Park/Garden/Reserve),-37.80176908,144.9719976,low
+POI0177,Fawkner Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.84139967,144.9816257,low
+POI0179,Enterprize Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82021027,144.9592769,low
+POI0180,Royal Melbourne Hospital,Public Hospital,-37.79930717,144.9563897,low
+POI0185,Carlton Gardens South,Informal Outdoor Facility (Park/Garden/Reserve),-37.80606846,144.9712665,low
+POI0186,Wesley Church,Church,-37.81015764,144.9681682,low
+POI0187,Christ Church Kensington,Church,-37.79321095,144.9272957,low
+POI0188,Melbourne Private Hospital,Private Hospital,-37.79831113,144.9572884,low
+POI0191,Batman Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82184609,144.9566658,low
+POI0201,Riverslide Skate Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82078871,144.9729518,low
+POI0202,Royal Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.79061743,144.9538342,low
+POI0203,Government House,Dwelling (House),-37.82756359,144.9766551,low
+POI0204,Yarra Park,Informal Outdoor Facility (Park/Garden/Reserve),-37.82046937,144.9866711,low
+POI0207,St Pauls Cathedral,Church,-37.8169549,144.9676816,low
+POI0212,Lincoln Square,Informal Outdoor Facility (Park/Garden/Reserve),-37.80279197,144.9627609,low
+POI0213,Bishopscourt,Dwelling (House),-37.81329216,144.9835069,low
+POI0214,St Peter's Eastern Hill,Church,-37.80970867,144.9752592,low
+POI0215,Scots Church,Church,-37.81456878,144.9685511,low
+POI0216,South Yarra Presbyterian Church,Church,-37.84074736,144.985627,low
+POI0219,Epworth Freemasons Hospital : Medical Centre,Private Hospital,-37.80934446,144.9823368,low
+POI0222,Collins Street Baptist Church,Church,-37.81470119,144.9680725,low
+POI0223,St Thomas Aquinas Church,Church,-37.83530769,144.9768091,low
+POI0225,Powlett Reserve,Informal Outdoor Facility (Park/Garden/Reserve),-37.81169299,144.9872757,low
+POI0236,Alfred Hospital,Public Hospital,-37.84626312,144.9817863,low
+POI0240,Royal Dental Hospital,Public Hospital,-37.79950659,144.9645268,low

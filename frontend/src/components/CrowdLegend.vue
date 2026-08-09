@@ -1,11 +1,12 @@
 <script setup>
+import { FLOW_BANDS } from '@/services/routing.js'
+
 /** Legend for the live crowd layer. Counts are people per minute past a sensor. */
-const LEVELS = [
-  { label: 'Quiet', range: '< 60', colour: '#12805c' },
-  { label: 'Moderate', range: '60–110', colour: '#f9ab00' },
-  { label: 'Busy', range: '110–150', colour: '#e8710a' },
-  { label: 'Very busy', range: '> 150', colour: '#d93025' },
-]
+const LEVELS = FLOW_BANDS.map((band, i) => {
+  const floor = i === 0 ? null : FLOW_BANDS[i - 1].ceiling
+  const range = floor == null ? `< ${band.ceiling}` : band.ceiling === Infinity ? `> ${floor}` : `${floor}–${band.ceiling}`
+  return { label: band.label, range, colour: band.colour }
+})
 </script>
 
 <template>

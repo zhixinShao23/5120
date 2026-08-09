@@ -14,6 +14,7 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
   weather: { type: Object, default: null },
   pickingField: { type: String, default: null },
+  hasPlanned: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([
@@ -24,6 +25,7 @@ const emit = defineEmits([
   'swap',
   'close',
   'pick-on-map',
+  'find-route',
 ])
 
 const originInput = ref(null)
@@ -116,10 +118,21 @@ onMounted(() => {
       </p>
 
       <p v-else-if="!ready" class="directions__empty">
-        Enter a start and a destination. Every option is checked against live
-        crowd numbers, and we recommend the fastest one that stays under your
-        limit.
+        Enter a start and a destination — by search or by tapping the pin
+        icon to choose a point on the map — then find your route.
       </p>
+
+      <div v-else-if="!hasPlanned && !loading" class="directions__find">
+        <p class="directions__find-hint">
+          Ready when you are. Every option is checked against live crowd
+          numbers, and we recommend the fastest one that stays under your
+          limit.
+        </p>
+        <button class="directions__find-btn" @click="emit('find-route')">
+          <AppIcon name="route" :size="18" />
+          Find route
+        </button>
+      </div>
 
       <p v-else-if="loading" class="directions__empty">
         <span class="directions__spinner" aria-hidden="true" />
@@ -281,6 +294,40 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.5;
   color: var(--text-muted);
+}
+
+.directions__find {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 22px 20px 28px;
+}
+
+.directions__find-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.directions__find-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 120ms ease;
+}
+
+.directions__find-btn:hover {
+  background: #1765cc;
 }
 
 .directions__spinner {

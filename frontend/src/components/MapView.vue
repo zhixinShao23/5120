@@ -2,17 +2,20 @@
 import { onMounted, onBeforeUnmount, ref, shallowRef, watch, nextTick } from 'vue'
 import L from 'leaflet'
 import AppIcon from './AppIcon.vue'
-import { scoreBand } from '@/services/routing.js'
+import { scoreBand, flowBand } from '@/services/routing.js'
+import { SENSOR_RADIUS_M } from '@/services/engine/grid.js'
 
 const props = defineProps({
   sensors: { type: Array, default: () => [] },
   routes: { type: Array, default: () => [] },
   activeRouteId: { type: String, default: null },
   landmarks: { type: Array, default: () => [] },
+  refuges: { type: Array, default: () => [] },
   origin: { type: Object, default: null },
   destination: { type: Object, default: null },
   showCrowd: { type: Boolean, default: true },
   showLandmarks: { type: Boolean, default: false },
+  showRefuges: { type: Boolean, default: false },
   focus: { type: Object, default: null },
   panelOpen: { type: Boolean, default: false },
   pickMode: { type: String, default: null },
@@ -52,20 +55,6 @@ const TILES = {
 const TILE_FALLBACK = {
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   attribution: '&copy; OpenStreetMap contributors',
-}
-
-const LEVEL_COLOURS = {
-  low: '#12805c',
-  moderate: '#f9ab00',
-  high: '#e8710a',
-  severe: '#d93025',
-}
-
-const LEVEL_LABELS = {
-  low: 'Quiet',
-  moderate: 'Moderate',
-  high: 'Busy',
-  severe: 'Very busy',
 }
 
 function escapeHtml(value) {
@@ -109,6 +98,7 @@ onMounted(() => {
     crowd: L.layerGroup().addTo(instance),
     routes: L.layerGroup().addTo(instance),
     landmarks: L.layerGroup().addTo(instance),
+    refuges: L.layerGroup().addTo(instance),
     endpoints: L.layerGroup().addTo(instance),
   }
 
@@ -120,6 +110,7 @@ onMounted(() => {
 
   drawCrowd()
   drawLandmarks()
+  drawRefuges()
   drawRoutes()
   drawEndpoints()
 })
@@ -150,12 +141,16 @@ function drawCrowd() {
   if (!props.showCrowd) return
 
   for (const sensor of props.sensors) {
-    const colour = LEVEL_COLOURS[sensor.level]
+    const band = flowBand(sensor.count)
+    const colour = band.colour
 
-    // A soft ground-truth halo sized in metres, so it scales with zoom the
-    // way a real catchment would.
+    // The halo's radius IS the router's real matching radius (see
+    // engine/grid.js's SENSOR_RADIUS_M). Drawing anything wider would
+    // visually overlap route lines the sensor never actually influenced,
+    // wrongly implying "this route passes through that reading" when the
+    // scoring never matched it to any block on the path.
     L.circle([sensor.lat, sensor.lng], {
-      radius: 70 + sensor.normalised * 190,
+      radius: SENSOR_RADIUS_M,
       color: colour,
       weight: 0,
       fillColor: colour,
@@ -172,14 +167,14 @@ function drawCrowd() {
         iconAnchor: [diameter / 2, diameter / 2],
       }),
       keyboard: false,
-      title: `${sensor.name} — ${LEVEL_LABELS[sensor.level]}`,
+      title: `${sensor.name} — ${band.label}`,
     }).addTo(layer)
 
     marker.bindPopup(
       `<div class="map-popup">
          <p class="map-popup__title">${escapeHtml(sensor.name)}</p>
          <p class="map-popup__metric" style="color:${colour}">${sensor.count.toLocaleString()} <span>people/min</span></p>
-         <p class="map-popup__meta">${LEVEL_LABELS[sensor.level]} &middot; ${sensor.trend}</p>
+         <p class="map-popup__meta">${band.label} &middot; ${sensor.trend}</p>
        </div>`,
       { closeButton: false, offset: [0, -diameter / 2] },
     )
@@ -215,6 +210,40 @@ function drawLandmarks() {
       { direction: 'top', offset: [0, -12] },
     )
     marker.on('click', () => emit('select-landmark', landmark))
+  }
+}
+
+// --- Refuge layer ("Quiet spots") -------------------------------------------
+//
+// Sensory-calm points of interest from the council POI dataset (parks,
+// churches, hospitals, libraries) — a much larger, unfiltered set than the
+// curated landmarks list, so drawn with a plainer marker of its own.
+
+function drawRefuges() {
+  const layer = layers.value.refuges
+  if (!layer) return
+  layer.clearLayers()
+  if (!props.showRefuges) return
+
+  for (const refuge of props.refuges) {
+    const marker = L.marker([refuge.lat, refuge.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div class="refuge-marker">
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff">
+                   <path d="M17 12h2L12 2 5.5 12h2l-3.5 6h6v4h4v-4h6l-3.5-6z"/>
+                 </svg>
+               </div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      }),
+      title: refuge.name,
+    }).addTo(layer)
+
+    marker.bindTooltip(
+      `${escapeHtml(refuge.name)} — ${escapeHtml(refuge.category)}`,
+      { direction: 'top', offset: [0, -10] },
+    )
   }
 }
 
@@ -374,6 +403,7 @@ function toggleBasemap() {
 watch(() => props.sensors, drawCrowd, { deep: false })
 watch(() => props.showCrowd, drawCrowd)
 watch([() => props.landmarks, () => props.showLandmarks], drawLandmarks)
+watch([() => props.refuges, () => props.showRefuges], drawRefuges)
 watch([() => props.routes, () => props.activeRouteId], async () => {
   drawRoutes()
   await nextTick()
