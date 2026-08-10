@@ -152,7 +152,29 @@ CREATE INDEX idx_poi_sensory_score ON points_of_interest(sensory_score);
 
 
 -- ============================================================================
--- 4. OPTIONAL — accounts & trip history
+-- 4. WEATHER
+--
+-- One row per observation. Maps onto frontend/src/mock/data.js's WEATHER
+-- object, which is the shape /api/weather/current must return. Small and
+-- low-volume enough that "latest row" is a fine query pattern here too.
+-- ============================================================================
+
+CREATE TABLE weather_observations (
+    id             BIGSERIAL PRIMARY KEY,
+    temp_c         NUMERIC(4, 1) NOT NULL,
+    condition      TEXT NOT NULL,
+    icon           TEXT,                    -- e.g. 'cloud', matches AppIcon names
+    wind_kph       NUMERIC(4, 1),
+    rain_chance    NUMERIC(3, 2) CHECK (rain_chance BETWEEN 0 AND 1),
+    uv_index       NUMERIC(3, 1),
+    observed_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_weather_observed_at ON weather_observations (observed_at DESC);
+
+
+-- ============================================================================
+-- 5. OPTIONAL — accounts & trip history
 --
 -- Nothing in the app needs these today (every user is anonymous, nothing is
 -- saved between sessions). Include them only if you want accounts, saved

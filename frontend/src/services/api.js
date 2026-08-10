@@ -279,29 +279,42 @@ export async function fetchRefuges() {
  * recommended route should exceed it.
  */
 export async function planRoute({ origin, destination, maxFlow }) {
+  if (!origin || !destination) return []
+
+  // Both the real backend (server/lib/routing.js's plan()) and the local
+  // engine (engine/routing.js's plan(), via localApi.route()) return routes
+  // in the same "engine" shape — distance_m, peak_density, steps of
+  // {from,to,street,...}. UI formatting (toUiRoute, road-snapping, ranking)
+  // applies identically either way, so the backend never needs to duplicate
+  // that presentation logic.
   const data = await request('/routes/plan', {
     method: 'POST',
     body: JSON.stringify({ origin, destination, maxFlow }),
   })
-  if (data?.routes) return data.routes
 
-  if (!origin || !destination) return []
-
-  let result
-  try {
-    result = await localApi.route({
-      origin: { lat: origin.lat, lng: origin.lng },
-      destination: { lat: destination.lat, lng: destination.lng },
-      tolerance: maxFlow,
-    })
-  } catch (error) {
-    console.error('local routing engine failed', error)
-    return []
+  let engineRoutes
+  let assumedDensity
+  if (data?.routes?.length) {
+    engineRoutes = data.routes
+    assumedDensity = data.meta?.assumed_density ?? 0
+  } else {
+    let result
+    try {
+      result = await localApi.route({
+        origin: { lat: origin.lat, lng: origin.lng },
+        destination: { lat: destination.lat, lng: destination.lng },
+        tolerance: maxFlow,
+      })
+    } catch (error) {
+      console.error('local routing engine failed', error)
+      return []
+    }
+    engineRoutes = result.data.routes
+    assumedDensity = result.meta.assumed_density
   }
 
   const endpoints = { origin, destination }
-  const assumedDensity = result.meta.assumed_density
-  const routes = result.data.routes.map((r) => toUiRoute(r, endpoints, maxFlow, assumedDensity))
+  const routes = engineRoutes.map((r) => toUiRoute(r, endpoints, maxFlow, assumedDensity))
 
   await Promise.all(
     routes.map(async (route) => {
