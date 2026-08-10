@@ -9,7 +9,6 @@ import LiveStatusCard from '../components/LiveStatusCard.vue'
 import CategoryChips from '../components/CategoryChips.vue'
 import AlertBanner from '../components/AlertBanner.vue'
 import CrowdLegend from '../components/CrowdLegend.vue'
-import CoverageDebugPanel from '../components/CoverageDebugPanel.vue'
 import {
   fetchLiveCrowd,
   fetchWeather,
@@ -206,13 +205,6 @@ function findRoute() {
   replan()
 }
 
-// Debug: switching the sensor-matching method re-scores whatever route is
-// already showing, so the effect is visible immediately rather than only on
-// the next unrelated replan.
-function onMatchMethodChanged() {
-  if (hasPlanned.value) replan()
-}
-
 /**
  * Live re-scoring. When the sensors move we re-plan quietly, and if the
  * recommended route has changed underneath the user, we say so rather than
@@ -403,7 +395,6 @@ function applyAlert() {
       </div>
 
       <CrowdLegend v-if="layers.crowd" class="hud__legend" />
-      <CoverageDebugPanel class="hud__debug" @changed="onMatchMethodChanged" />
     </div>
   </div>
 </template>
@@ -460,12 +451,6 @@ function applyAlert() {
   position: absolute;
   right: 12px;
   top: 64px;
-}
-
-.hud__debug {
-  position: absolute;
-  right: 12px;
-  bottom: 24px;
 }
 
 @media (max-width: 900px) {
