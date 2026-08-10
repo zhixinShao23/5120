@@ -22,6 +22,7 @@ import * as grid from './lib/grid.js'
 import * as scoring from './lib/scoring.js'
 import * as routing from './lib/routing.js'
 import { flowBand } from './lib/bands.js'
+import { fetchLiveLoads } from './lib/liveCrowd.js'
 
 const PORT = process.env.PORT || 8000
 
@@ -49,8 +50,34 @@ export function invalidateGridState() {
 
 // --------------------------------------------------------------------------
 // Crowd data — NOT cached at module scope like the grid, because this
-// table is the one thing in the schema that changes continuously.
+// table (and the live feed) is the one thing that changes continuously.
+//
+// loadCrowd() tries the live City of Melbourne feed first, same as the
+// frontend's local engine does — the DB's sensor_readings table is a
+// fallback for when that feed is unreachable, not the primary source. A
+// backend that only ever served the one-time seed would silently go stale
+// forever while claiming to be "live" (that's exactly the bug this fixes:
+// a deployed instance kept reporting a 3-day-old evening-peak snapshot as
+// "just now" because the endpoint stamped every response with the current
+// server time instead of the data's actual timestamp).
 // --------------------------------------------------------------------------
+
+// Re-fetching the external feed on every request would hammer it under
+// concurrent traffic (the frontend polls every 15s per visitor) — cache
+// briefly and share one fetch across requests in that window.
+const LIVE_CACHE_MS = 60_000
+let liveCache = { loads: null, prevLoads: null, newest: null, fetchedAt: 0 }
+
+async function loadLiveCrowd() {
+  if (liveCache.loads && Date.now() - liveCache.fetchedAt < LIVE_CACHE_MS) {
+    return liveCache
+  }
+  const { loads, newest } = await fetchLiveLoads()
+  // The cache's outgoing loads become "previous", for trend — a fetch that
+  // itself failed (caught by the caller) must not overwrite this.
+  liveCache = { loads, prevLoads: liveCache.loads, newest, fetchedAt: Date.now() }
+  return liveCache
+}
 
 // Two flat queries rather than one with window functions: the latest
 // reading per sensor (DISTINCT ON), and every reading ordered per sensor
@@ -60,7 +87,7 @@ export function invalidateGridState() {
 const LATEST_QUERY = `
   SELECT DISTINCT ON (sensor_id)
          sensor_id, direction_1_count AS d1, direction_2_count AS d2,
-         total_count AS total, sensing_datetime, source
+         total_count AS total, sensing_datetime
   FROM sensor_readings
   ORDER BY sensor_id, sensing_datetime DESC
 `
@@ -70,7 +97,8 @@ const ALL_TOTALS_QUERY = `
   ORDER BY sensor_id, sensing_datetime DESC
 `
 
-async function loadCrowd() {
+/** Fallback for when the live feed is unreachable — the seeded/last-imported snapshot. */
+async function loadCrowdFromDb() {
   const [{ rows: latest }, { rows: all }] = await Promise.all([
     pool.query(LATEST_QUERY),
     pool.query(ALL_TOTALS_QUERY),
@@ -78,13 +106,9 @@ async function loadCrowd() {
 
   const loads = new Map()
   let newest = null
-  let source = 'unavailable'
   for (const r of latest) {
     loads.set(r.sensor_id, { total: Number(r.total), d1: Number(r.d1), d2: Number(r.d2) })
-    if (newest == null || r.sensing_datetime > newest) {
-      newest = r.sensing_datetime
-      source = r.source
-    }
+    if (newest == null || r.sensing_datetime > newest) newest = r.sensing_datetime
   }
 
   // `all` is ordered per-sensor newest-first, so the second row seen for a
@@ -100,7 +124,22 @@ async function loadCrowd() {
   }
 
   const ageSeconds = newest ? Math.floor((Date.now() - new Date(newest).getTime()) / 1000) : null
-  return { loads, prevTotals, source, ageSeconds }
+  return { loads, prevTotals, source: loads.size ? 'cached' : 'unavailable', ageSeconds, newest }
+}
+
+async function loadCrowd() {
+  try {
+    const live = await loadLiveCrowd()
+    const prevTotals = new Map()
+    if (live.prevLoads) {
+      for (const [sid, load] of live.prevLoads) prevTotals.set(sid, load.total)
+    }
+    const ageSeconds = live.newest ? Math.floor((Date.now() - live.newest.getTime()) / 1000) : null
+    return { loads: live.loads, prevTotals, source: 'live', ageSeconds, newest: live.newest }
+  } catch (e) {
+    console.warn('live crowd fetch failed, falling back to DB snapshot:', e.message)
+    return loadCrowdFromDb()
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -119,7 +158,11 @@ app.get(['/health', '/api/health'], async (req, res) => {
 app.get('/crowd/live', async (req, res) => {
   try {
     const state = await getGridState()
-    const { loads, prevTotals, source, ageSeconds } = await loadCrowd()
+    const { loads, prevTotals, source, ageSeconds, newest } = await loadCrowd()
+    // The data's own timestamp, not "now" — a fallback reading from three
+    // days ago must say so, not be stamped fresh just because the request
+    // happened this second.
+    const observedAt = (newest ? new Date(newest) : new Date()).toISOString()
 
     const sensors = []
     for (const [sid, load] of loads) {
@@ -139,11 +182,11 @@ app.get('/crowd/live', async (req, res) => {
         normalised,
         level: flowBand(load.total).id,
         trend: delta > 0.015 ? 'rising' : delta < -0.015 ? 'falling' : 'steady',
-        updatedAt: new Date().toISOString(),
+        updatedAt: observedAt,
       })
     }
 
-    res.json({ sensors, observedAt: new Date().toISOString(), source, dataAgeSeconds: ageSeconds })
+    res.json({ sensors, observedAt, source, dataAgeSeconds: ageSeconds })
   } catch (e) {
     console.error('GET /crowd/live failed:', e)
     res.status(502).json({ sensors: [], error: e.message })
