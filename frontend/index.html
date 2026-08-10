@@ -10,6 +10,16 @@
     />
   </head>
   <body>
+    <script>
+      // Set the theme before first paint, so there's no flash of the wrong
+      // theme while main.js loads. Kept out of main.js deliberately — it
+      // must run synchronously, before any CSS has had a chance to render.
+      (function () {
+        var stored = localStorage.getItem('quietway-theme')
+        var theme = stored ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        document.documentElement.dataset.theme = theme
+      })()
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

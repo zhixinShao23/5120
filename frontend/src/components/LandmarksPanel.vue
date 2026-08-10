@@ -135,7 +135,7 @@ function toggle(landmark) {
   flex-direction: column;
   width: var(--panel-width);
   max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 100px);
+  max-height: calc(100vh - var(--nav-height) - 100px);
   overflow: hidden;
 }
 
@@ -164,7 +164,7 @@ function toggle(landmark) {
   padding: 2px 16px 14px;
   overflow-x: auto;
   overflow-y: hidden;
-  border-bottom: 1px solid #e8eaed;
+  border-bottom: 1px solid var(--divider);
   /* An overlay scrollbar here would sit on top of the chips. */
   scrollbar-width: none;
 }
@@ -193,11 +193,11 @@ function toggle(landmark) {
 }
 
 .landmark {
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--surface-sunken);
 }
 
 .landmark.is-open {
-  background: #f8fbff;
+  background: var(--surface-hover);
 }
 
 .landmark__main {
@@ -210,7 +210,7 @@ function toggle(landmark) {
 }
 
 .landmark__main:hover {
-  background: rgba(60, 64, 67, 0.04);
+  background: var(--hover-weak);
 }
 
 .landmark__icon {
@@ -293,13 +293,13 @@ function toggle(landmark) {
   gap: 6px;
   padding: 7px 14px;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
 }
 
 .landmark__action:hover {
-  background: #1765cc;
+  background: var(--accent-fill-hover);
 }
 </style>

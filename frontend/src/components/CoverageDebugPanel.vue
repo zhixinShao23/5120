@@ -192,6 +192,6 @@ defineExpose({ refresh })
 }
 
 .debug__refresh:hover {
-  background: #e8eaed;
+  background: var(--divider);
 }
 </style>

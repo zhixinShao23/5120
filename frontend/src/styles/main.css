@@ -1,32 +1,106 @@
 @import 'leaflet/dist/leaflet.css';
 
 :root {
+  --page-bg: #fff;
   --surface: #fff;
   --surface-sunken: #f1f3f4;
+  --surface-hover: #f8fbff;
+  --divider: #e8eaed;
   --text: #202124;
   --text-muted: #5f6368;
   --text-faint: #80868b;
   --border: #dadce0;
   --accent: #1a73e8;
   --accent-soft: #e8f0fe;
+  --accent-strong: #174ea6;
+  /* Solid button fills need to stay dark enough for white text on top in
+     BOTH themes — kept separate from --accent, which lightens in dark mode
+     to read as text/icon colour against a dark surface instead. */
+  --accent-fill: #1a73e8;
+  --accent-fill-hover: #1765cc;
+
+  /* A high-contrast fill for the one CTA that's deliberately NOT blue (the
+     homepage's "Find route" button) — inverts between themes rather than
+     tracking --text, since a black-on-white button becomes white-on-black
+     in dark mode, not light-text-on-light-fill. */
+  --strong-fill: #202124;
+  --strong-fill-hover: #3c4043;
+  --strong-fill-text: #fff;
 
   --calm: #12805c;
+  --calm-soft: #e6f4ea;
   --moderate: #b8860b;
   --busy: #e8710a;
   --overwhelming: #d93025;
+  --overwhelming-soft: #fce8e6;
+  --info-soft: #d2e3fc;
+
+  --scrollbar: #bdc1c6;
+  --hover-weak: rgba(60, 64, 67, 0.05);
+  --hover-strong: rgba(60, 64, 67, 0.08);
 
   --shadow-card: 0 1px 2px rgba(60, 64, 67, 0.3), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
   --shadow-chip: 0 1px 2px rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+
+  --map-bg: #e8eaed;
 
   --radius-card: 8px;
   --radius-pill: 999px;
 
   --panel-width: 400px;
+  --nav-height: 64px;
 
   font-family: Roboto, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
   font-size: 14px;
   color: var(--text);
+  background: var(--page-bg);
   -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='dark'] {
+  --page-bg: #121212;
+  --surface: #1e1f20;
+  --surface-sunken: #2a2b2d;
+  --surface-hover: #26282b;
+  --divider: #3c4043;
+  --text: #e8eaed;
+  --text-muted: #9aa0a6;
+  --text-faint: #80868b;
+  --border: #3c4043;
+  --accent: #8ab4f8;
+  --accent-soft: #1b2c4a;
+  --accent-strong: #aecbfa;
+  --accent-fill: #1a73e8;
+  --accent-fill-hover: #4285f4;
+
+  --strong-fill: #e8eaed;
+  --strong-fill-hover: #c7c9cb;
+  --strong-fill-text: #121212;
+
+  --calm: #34a853;
+  --calm-soft: #1b3327;
+  --moderate: #f9ab00;
+  --busy: #fa903e;
+  --overwhelming: #f28b82;
+  --overwhelming-soft: #3c2222;
+  --info-soft: #24334d;
+
+  --scrollbar: #5f6368;
+  --hover-weak: rgba(255, 255, 255, 0.06);
+  --hover-strong: rgba(255, 255, 255, 0.1);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.6), 0 2px 6px 2px rgba(0, 0, 0, 0.45);
+  --shadow-chip: 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 3px 1px rgba(0, 0, 0, 0.45);
+
+  --map-bg: #1a1a1a;
+}
+
+/* Cards rely on shadow alone for elevation in light mode; a black shadow
+   barely reads against an already-dark page, so dark mode adds a hairline
+   border too. */
+:root[data-theme='dark'] .card,
+:root[data-theme='dark'] .chip {
+  border: 1px solid var(--border);
 }
 
 * {
@@ -39,6 +113,7 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
+  background: var(--page-bg);
 }
 
 button {
@@ -92,17 +167,17 @@ input {
   box-shadow: var(--shadow-chip);
   font-size: 13px;
   font-weight: 500;
-  color: #3c4043;
+  color: var(--text);
   transition: background 120ms ease;
 }
 
 .chip:hover {
-  background: #f8f9fa;
+  background: var(--surface-hover);
 }
 
 .chip[aria-pressed='true'] {
   background: var(--accent-soft);
-  color: #174ea6;
+  color: var(--accent-strong);
 }
 
 .icon-button {
@@ -116,7 +191,7 @@ input {
 }
 
 .icon-button:hover {
-  background: rgba(60, 64, 67, 0.08);
+  background: var(--hover-strong);
 }
 
 /* --- Leaflet overrides so the basemap reads like the reference ----------- */
@@ -124,7 +199,7 @@ input {
 .leaflet-container {
   height: 100%;
   width: 100%;
-  background: #e8eaed;
+  background: var(--map-bg);
   font: inherit;
 }
 
@@ -135,6 +210,8 @@ input {
 }
 
 .leaflet-popup-content-wrapper {
+  background: var(--surface);
+  color: var(--text);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
   padding: 0;
@@ -146,6 +223,7 @@ input {
 }
 
 .leaflet-popup-tip {
+  background: var(--surface);
   box-shadow: var(--shadow-card);
 }
 
@@ -212,7 +290,7 @@ input {
 .scroll-area {
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #bdc1c6 transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 
 .scroll-area::-webkit-scrollbar {
@@ -220,7 +298,7 @@ input {
 }
 
 .scroll-area::-webkit-scrollbar-thumb {
-  background: #bdc1c6;
+  background: var(--scrollbar);
   border-radius: 4px;
 }
 

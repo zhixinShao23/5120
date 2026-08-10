@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, onBeforeUnmount, ref, shallowRef, watch, nextTick } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, shallowRef, watch, nextTick } from 'vue'
 import L from 'leaflet'
 import AppIcon from './AppIcon.vue'
 import { scoreBand, flowBand } from '@/services/routing.js'
 import { SENSOR_RADIUS_M } from '@/services/engine/grid.js'
+import { theme } from '../theme.js'
 
 const props = defineProps({
   sensors: { type: Array, default: () => [] },
@@ -41,6 +42,10 @@ const TILES = {
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
   },
+  mapDark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+  },
   satellite: {
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles &copy; Esri',
@@ -50,12 +55,24 @@ const TILES = {
 /**
  * Some networks and most ad blockers block `cartocdn.com`, which leaves the
  * map blank with no explanation. Fall back to the OpenStreetMap tile server,
- * which is on nobody's blocklist.
+ * which is on nobody's blocklist. OSM only publishes a light basemap, so
+ * dark mode keeps this fallback light too rather than going tile-less.
  */
 const TILE_FALLBACK = {
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   attribution: '&copy; OpenStreetMap contributors',
 }
+
+/** Which CARTO config the "map" basemap should use right now. */
+function mapTileConfig() {
+  return theme.value === 'dark' ? TILES.mapDark : TILES.map
+}
+
+// Dark Matter is deliberately very dark with muted roads/labels — brighten
+// it a touch via CSS filter rather than switching providers, so streets and
+// their names stay legible. Only applies to the "map" basemap; satellite
+// imagery doesn't need or want this.
+const brightenTiles = computed(() => theme.value === 'dark' && basemap.value === 'map')
 
 function escapeHtml(value) {
   return String(value).replace(
@@ -67,7 +84,10 @@ function escapeHtml(value) {
 onMounted(() => {
   const instance = L.map(container.value, {
     center: MELBOURNE_CBD,
-    zoom: 15,
+    // One notch closer than 15 — CARTO's style renders street labels
+    // bigger/bolder at this zoom, so it's the cheapest way to make them
+    // more legible without touching the raster tiles themselves.
+    zoom: 16,
     zoomControl: false,
     attributionControl: true,
     // Keep the interaction feel close to the reference.
@@ -77,8 +97,8 @@ onMounted(() => {
 
   instance.attributionControl.setPrefix('')
 
-  tileLayer.value = L.tileLayer(TILES.map.url, {
-    attribution: TILES.map.attribution,
+  tileLayer.value = L.tileLayer(mapTileConfig().url, {
+    attribution: mapTileConfig().attribution,
     maxZoom: 19,
     detectRetina: true,
   }).addTo(instance)
@@ -383,7 +403,7 @@ function locateMe() {
     },
     () => {
       // Denied or unavailable — fall back to the CBD rather than doing nothing.
-      map.value.flyTo(MELBOURNE_CBD, 15, { duration: 0.8 })
+      map.value.flyTo(MELBOURNE_CBD, 16, { duration: 0.8 })
       locating.value = false
     },
     { timeout: 5000 },
@@ -393,12 +413,23 @@ function locateMe() {
 function toggleBasemap() {
   basemap.value = basemap.value === 'map' ? 'satellite' : 'map'
   const config =
-    basemap.value === 'map' && usingFallback.value ? TILE_FALLBACK : TILES[basemap.value]
+    basemap.value === 'map'
+      ? (usingFallback.value ? TILE_FALLBACK : mapTileConfig())
+      : TILES.satellite
   tileLayer.value?.setUrl(config.url)
   map.value?.attributionControl.setPrefix('')
 }
 
 // --- Reactions -------------------------------------------------------------
+
+// Swap the CARTO basemap's light/dark variant when the theme toggles — but
+// only while it's actually showing (not mid-satellite, not on the
+// CDN-blocked fallback, which has no dark variant of its own).
+watch(theme, () => {
+  if (basemap.value === 'map' && !usingFallback.value) {
+    tileLayer.value?.setUrl(mapTileConfig().url)
+  }
+})
 
 watch(() => props.sensors, drawCrowd, { deep: false })
 watch(() => props.showCrowd, drawCrowd)
@@ -445,7 +476,7 @@ defineExpose({ fitToRoutes })
     <div
       ref="container"
       class="map__canvas"
-      :class="{ 'map__canvas--picking': pickMode }"
+      :class="{ 'map__canvas--picking': pickMode, 'map__canvas--bright': brightenTiles }"
       role="application"
       aria-label="Map of Melbourne"
     />
@@ -505,6 +536,13 @@ defineExpose({ fitToRoutes })
   cursor: crosshair;
 }
 
+/* Dark Matter tiles are deliberately very dark with muted roads/labels —
+   lighten and de-saturate the raster imagery a touch so streets and their
+   names read clearly, without switching tile providers. */
+.map__canvas--bright :deep(.leaflet-tile-pane) {
+  filter: brightness(1.45) contrast(0.85) saturate(1.15);
+}
+
 .map__pick-hint {
   position: absolute;
   top: 16px;
@@ -516,7 +554,7 @@ defineExpose({ fitToRoutes })
   gap: 8px;
   padding: 10px 10px 10px 14px;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
@@ -553,8 +591,8 @@ defineExpose({ fitToRoutes })
   place-items: center;
   width: 40px;
   height: 40px;
-  color: #666;
-  background: #fff;
+  color: var(--text-muted);
+  background: var(--surface);
   transition: color 120ms ease;
 }
 
@@ -581,7 +619,7 @@ defineExpose({ fitToRoutes })
 
 .map__zoom-divider {
   height: 1px;
-  background: #e6e6e6;
+  background: var(--divider);
   margin: 0 8px;
 }
 
@@ -594,7 +632,7 @@ defineExpose({ fitToRoutes })
   border-radius: 8px;
   overflow: hidden;
   box-shadow: var(--shadow-chip);
-  background: #fff;
+  background: var(--surface);
 }
 
 .map__layers-thumb {
@@ -612,6 +650,10 @@ defineExpose({ fitToRoutes })
   background-image: linear-gradient(135deg, #e8eaed 0%, #f5f1e8 50%, #d7e6c8 100%);
 }
 
+:root[data-theme='dark'] .map__layers-thumb.is-map {
+  background-image: linear-gradient(135deg, #2a2b2d 0%, #232426 50%, #1e2a22 100%);
+}
+
 .map__layers-label {
   display: flex;
   align-items: center;
@@ -620,7 +662,7 @@ defineExpose({ fitToRoutes })
   padding: 4px 0;
   font-size: 10px;
   font-weight: 500;
-  color: #3c4043;
+  color: var(--text);
 }
 
 @media (max-width: 900px) {

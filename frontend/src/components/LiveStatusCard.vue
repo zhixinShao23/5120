@@ -145,7 +145,7 @@ const updated = computed(() => {
 }
 
 .status__row:hover {
-  background: rgba(60, 64, 67, 0.05);
+  background: var(--hover-weak);
 }
 
 .status__icon {

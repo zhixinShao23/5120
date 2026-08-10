@@ -54,7 +54,7 @@ const emit = defineEmits(['dismiss', 'action'])
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #fce8e6;
+  background: var(--overwhelming-soft);
   color: var(--overwhelming);
   flex-shrink: 0;
 }
@@ -80,14 +80,14 @@ const emit = defineEmits(['dismiss', 'action'])
   padding: 7px 14px;
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
-  color: #174ea6;
+  color: var(--accent-strong);
   font-size: 13px;
   font-weight: 500;
   flex-shrink: 0;
 }
 
 .alert__action:hover {
-  background: #d2e3fc;
+  background: var(--info-soft);
 }
 
 .alert__dismiss {

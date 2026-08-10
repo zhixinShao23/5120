@@ -191,17 +191,17 @@ defineExpose({ focus: () => inputEl.value?.focus() })
 }
 
 .place-input__map-btn:hover {
-  background: rgba(60, 64, 67, 0.08);
+  background: var(--hover-strong);
   color: var(--text-muted);
 }
 
 .place-input__map-btn.is-active {
   color: #fff;
-  background: var(--accent);
+  background: var(--accent-fill);
 }
 
 .place-input__map-btn.is-active:hover {
-  background: var(--accent);
+  background: var(--accent-fill);
 }
 
 .place-input__clear {
@@ -215,7 +215,7 @@ defineExpose({ focus: () => inputEl.value?.focus() })
 }
 
 .place-input__clear:hover {
-  background: rgba(60, 64, 67, 0.08);
+  background: var(--hover-strong);
   color: var(--text-muted);
 }
 

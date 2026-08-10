@@ -32,7 +32,7 @@ const limitPercent = computed(() => Math.min(100, (props.maxFlow / MAX_FLOW) * 1
     :class="{ 'is-active': active, 'is-excluded': route.underLimit === false }"
   >
     <button class="route__main" :aria-pressed="active" @click="$emit('select', route.id)">
-      <span class="route__rail" :style="{ background: active ? route.accent : '#dadce0' }" />
+      <span class="route__rail" :style="{ background: active ? route.accent : 'var(--border)' }" />
 
       <span class="route__body">
         <span class="route__head">
@@ -110,11 +110,11 @@ const limitPercent = computed(() => Math.min(100, (props.maxFlow / MAX_FLOW) * 1
 
 <style scoped>
 .route {
-  border-bottom: 1px solid #e8eaed;
+  border-bottom: 1px solid var(--divider);
 }
 
 .route.is-active {
-  background: #f8fbff;
+  background: var(--surface-hover);
 }
 
 /* Over the user's limit. Still selectable — the user can overrule us — but
@@ -170,8 +170,8 @@ const limitPercent = computed(() => Math.min(100, (props.maxFlow / MAX_FLOW) * 1
   gap: 3px;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
-  background: #e6f4ea;
-  color: #12805c;
+  background: var(--calm-soft);
+  color: var(--calm);
   font-size: 11px;
   font-weight: 500;
 }
@@ -196,7 +196,7 @@ const limitPercent = computed(() => Math.min(100, (props.maxFlow / MAX_FLOW) * 1
   flex: 1;
   height: 5px;
   border-radius: 3px;
-  background: #e8eaed;
+  background: var(--divider);
   overflow: visible;
 }
 

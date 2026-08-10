@@ -166,7 +166,7 @@ onMounted(() => {
   flex-direction: column;
   width: var(--panel-width);
   max-width: calc(100vw - 24px);
-  max-height: calc(100vh - 100px);
+  max-height: calc(100vh - var(--nav-height) - 100px);
   overflow: hidden;
 }
 
@@ -245,7 +245,7 @@ onMounted(() => {
 }
 
 .directions__field:focus-within {
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 0 0 2px var(--accent) inset;
 }
 
@@ -256,8 +256,8 @@ onMounted(() => {
 
 .directions__needs {
   padding: 14px 16px;
-  border-top: 1px solid #e8eaed;
-  background: #fafbfc;
+  border-top: 1px solid var(--divider);
+  background: var(--surface-sunken);
 }
 
 .directions__weather {
@@ -271,7 +271,7 @@ onMounted(() => {
 
 .directions__results {
   flex: 1;
-  border-top: 1px solid #e8eaed;
+  border-top: 1px solid var(--divider);
   min-height: 0;
 }
 
@@ -319,7 +319,7 @@ onMounted(() => {
   gap: 8px;
   height: 44px;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   font-size: 14px;
   font-weight: 500;
@@ -327,7 +327,7 @@ onMounted(() => {
 }
 
 .directions__find-btn:hover {
-  background: #1765cc;
+  background: var(--accent-fill-hover);
 }
 
 .directions__spinner {
