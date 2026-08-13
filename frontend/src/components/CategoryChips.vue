@@ -12,9 +12,6 @@ const CHIPS = [
   { id: 'crowd', label: 'Live crowds', icon: 'people' },
   { id: 'landmarks', label: 'Landmarks', icon: 'star' },
   { id: 'quiet', label: 'Quiet spots', icon: 'park' },
-  { id: 'transport', label: 'Public transport', icon: 'route' },
-  { id: 'toilets', label: 'Toilets', icon: 'place' },
-  { id: 'shade', label: 'Shade', icon: 'sun' },
 ]
 </script>
 

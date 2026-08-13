@@ -12,9 +12,19 @@ const props = defineProps({
   activeRouteId: { type: String, default: null },
   landmarks: { type: Array, default: () => [] },
   refuges: { type: Array, default: () => [] },
+  // Refuges near the SELECTED route — a small, contextual subset of
+  // `refuges`, always drawn regardless of the "Quiet spots" toggle
+  // (showRefuges), since these are specifically relevant to the trip that's
+  // actually on screen rather than every refuge in the mapped area.
+  nearbyRefuges: { type: Array, default: () => [] },
   origin: { type: Object, default: null },
   destination: { type: Object, default: null },
   showCrowd: { type: Boolean, default: true },
+  // True while "Plan ahead" is active — sensors are historical-baseline
+  // predictions rather than live/cached readings, on a different flow-band
+  // scale (see FLOW_BANDS_PREDICTED) and not a real per-minute count, so the
+  // crowd layer colours differently and never shows a raw number.
+  predicted: { type: Boolean, default: false },
   showLandmarks: { type: Boolean, default: false },
   showRefuges: { type: Boolean, default: false },
   focus: { type: Object, default: null },
@@ -119,6 +129,7 @@ onMounted(() => {
     routes: L.layerGroup().addTo(instance),
     landmarks: L.layerGroup().addTo(instance),
     refuges: L.layerGroup().addTo(instance),
+    nearbyRefuges: L.layerGroup().addTo(instance),
     endpoints: L.layerGroup().addTo(instance),
   }
 
@@ -131,6 +142,7 @@ onMounted(() => {
   drawCrowd()
   drawLandmarks()
   drawRefuges()
+  drawNearbyRefuges()
   drawRoutes()
   drawEndpoints()
 })
@@ -161,7 +173,7 @@ function drawCrowd() {
   if (!props.showCrowd) return
 
   for (const sensor of props.sensors) {
-    const band = flowBand(sensor.count)
+    const band = flowBand(sensor.count, props.predicted)
     const colour = band.colour
 
     // The halo's radius IS the router's real matching radius (see
@@ -179,10 +191,14 @@ function drawCrowd() {
     }).addTo(layer)
 
     const diameter = Math.round(20 + sensor.normalised * 20)
+    // A predicted reading is an hourly average, not a real per-minute count
+    // (see FLOW_BANDS_PREDICTED) — showing it as a bare number invites
+    // reading it the same way as a live count, which it isn't. The colour
+    // and size still carry how busy it is; the digit just doesn't belong.
     const marker = L.marker([sensor.lat, sensor.lng], {
       icon: L.divIcon({
         className: '',
-        html: `<div class="crowd-marker" style="width:${diameter}px;height:${diameter}px;background:${colour}">${sensor.count}</div>`,
+        html: `<div class="crowd-marker" style="width:${diameter}px;height:${diameter}px;background:${colour}">${props.predicted ? '' : sensor.count}</div>`,
         iconSize: [diameter, diameter],
         iconAnchor: [diameter / 2, diameter / 2],
       }),
@@ -191,11 +207,17 @@ function drawCrowd() {
     }).addTo(layer)
 
     marker.bindPopup(
-      `<div class="map-popup">
-         <p class="map-popup__title">${escapeHtml(sensor.name)}</p>
-         <p class="map-popup__metric" style="color:${colour}">${sensor.count.toLocaleString()} <span>people/min</span></p>
-         <p class="map-popup__meta">${band.label} &middot; ${sensor.trend}</p>
-       </div>`,
+      props.predicted
+        ? `<div class="map-popup">
+             <p class="map-popup__title">${escapeHtml(sensor.name)}</p>
+             <p class="map-popup__metric" style="color:${colour}">${band.label}</p>
+             <p class="map-popup__meta">Typical flow for this time — historical estimate, not a live count</p>
+           </div>`
+        : `<div class="map-popup">
+             <p class="map-popup__title">${escapeHtml(sensor.name)}</p>
+             <p class="map-popup__metric" style="color:${colour}">${sensor.count.toLocaleString()} <span>people/min</span></p>
+             <p class="map-popup__meta">${band.label} &middot; ${sensor.trend}</p>
+           </div>`,
       { closeButton: false, offset: [0, -diameter / 2] },
     )
   }
@@ -263,6 +285,52 @@ function drawRefuges() {
     marker.bindTooltip(
       `${escapeHtml(refuge.name)} — ${escapeHtml(refuge.category)}`,
       { direction: 'top', offset: [0, -10] },
+    )
+  }
+}
+
+// --- Nearby-refuge layer (route detail) -------------------------------------
+//
+// Distinct from the layer above: these are the refuges near the CURRENTLY
+// SELECTED route (see api.js's nearbyRefuges()), always shown once a route
+// is picked regardless of whether the general "Quiet spots" toggle is on —
+// picking a route should surface what's useful along it without needing a
+// second layer switched on too. Drawn larger, with a halo, so they still
+// stand out on top of the plainer city-wide layer if that one's on as well.
+
+function drawNearbyRefuges() {
+  const layer = layers.value.nearbyRefuges
+  if (!layer) return
+  layer.clearLayers()
+
+  for (const refuge of props.nearbyRefuges) {
+    L.circle([refuge.lat, refuge.lng], {
+      radius: 40,
+      color: '#1a73e8',
+      weight: 0,
+      fillColor: '#1a73e8',
+      fillOpacity: 0.15,
+      interactive: false,
+    }).addTo(layer)
+
+    const marker = L.marker([refuge.lat, refuge.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div class="refuge-marker refuge-marker--nearby">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
+                   <path d="M17 12h2L12 2 5.5 12h2l-3.5 6h6v4h4v-4h6l-3.5-6z"/>
+                 </svg>
+               </div>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      }),
+      zIndexOffset: 800,
+      title: refuge.name,
+    }).addTo(layer)
+
+    marker.bindTooltip(
+      `${escapeHtml(refuge.name)} — ${escapeHtml(refuge.category)} · ${refuge.distanceM} m away`,
+      { direction: 'top', offset: [0, -13] },
     )
   }
 }
@@ -433,8 +501,10 @@ watch(theme, () => {
 
 watch(() => props.sensors, drawCrowd, { deep: false })
 watch(() => props.showCrowd, drawCrowd)
+watch(() => props.predicted, drawCrowd)
 watch([() => props.landmarks, () => props.showLandmarks], drawLandmarks)
 watch([() => props.refuges, () => props.showRefuges], drawRefuges)
+watch(() => props.nearbyRefuges, drawNearbyRefuges)
 watch([() => props.routes, () => props.activeRouteId], async () => {
   drawRoutes()
   await nextTick()

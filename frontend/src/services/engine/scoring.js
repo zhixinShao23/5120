@@ -15,8 +15,17 @@
 
 import * as grid from './grid.js'
 
-// Crowd density bands, people per minute.
+// Crowd density bands, people per minute — calibrated against the live feed's
+// instantaneous per-minute reading.
 export const THRESHOLDS = { low: 50, medium: 150 }
+
+// The historical baseline reports an HOURLY AVERAGE per-minute rate, not an
+// instantaneous one (see engine/historical.js) — it tops out around 71
+// across the entire dataset, so THRESHOLDS above would read almost every
+// predicted block as "low". Calibrated against the baseline's own
+// distribution instead (p75≈8, p90≈18, p99≈44) — see services/routing.js's
+// FLOW_BANDS_PREDICTED, which this mirrors at a coarser (3-band) grain.
+export const THRESHOLDS_PREDICTED = { low: 8, medium: 30 }
 
 // How much each factor inflates the walk.
 export const W_DENSITY = 1.2
@@ -39,6 +48,12 @@ export const OPPOSING_REF = 100.0
 
 // Heatmap intensity of 1.0 corresponds to this density.
 export const HEATMAP_CEILING = 250.0
+
+// Predicted-mode equivalent — without this, every predicted marker would
+// normalise to near-zero intensity (71 / 250 ≈ 0.28 at the dataset's own
+// busiest reading) and render at nearly the same tiny size regardless of
+// how busy that block actually is relative to other predicted blocks.
+export const HEATMAP_CEILING_PREDICTED = 30.0
 
 let assumedCache = null
 let assumedCacheKey = null
@@ -125,18 +140,24 @@ export function edgeCost(u, v, tolerance, loads) {
 // Interpretation — the single source of truth for labels and colours
 // --------------------------------------------------------------------------
 
-/** Density band. 'unknown' is a real answer, not a failure. */
-export function rate(density) {
+/**
+ * Density band. 'unknown' is a real answer, not a failure. `predicted`
+ * swaps in THRESHOLDS_PREDICTED — pass it whenever `density` came from the
+ * historical baseline rather than the live/cached feed.
+ */
+export function rate(density, predicted = false) {
   if (density == null) return 'unknown'
-  if (density < THRESHOLDS.low) return 'low'
-  if (density < THRESHOLDS.medium) return 'medium'
+  const t = predicted ? THRESHOLDS_PREDICTED : THRESHOLDS
+  if (density < t.low) return 'low'
+  if (density < t.medium) return 'medium'
   return 'high'
 }
 
 /** 0-1 heatmap intensity, on the same scale as rate() so map and cards never disagree. */
-export function normalise(density) {
+export function normalise(density, predicted = false) {
   if (density == null) return null
-  return Math.round(Math.min(density / HEATMAP_CEILING, 1.0) * 1000) / 1000
+  const ceiling = predicted ? HEATMAP_CEILING_PREDICTED : HEATMAP_CEILING
+  return Math.round(Math.min(density / ceiling, 1.0) * 1000) / 1000
 }
 
 /** Why this block scored what it did — feeds confidence metadata and debugging. */

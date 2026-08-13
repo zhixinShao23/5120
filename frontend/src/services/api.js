@@ -116,7 +116,7 @@ function waypointsFromRoute(route, endpoints) {
   return waypoints
 }
 
-function toUiRoute(route, endpoints, maxFlow, assumedDensity) {
+function toUiRoute(route, endpoints, maxFlow, assumedDensity, predicted) {
   const meta = PRESET_META[route.id] ?? { label: route.id, accent: '#5f6368' }
 
   const coordinates = [...route.coords]
@@ -149,10 +149,41 @@ function toUiRoute(route, endpoints, maxFlow, assumedDensity) {
     peakAt: peakStep?.street ?? null,
     meanFlow: route.mean_density ?? peakFlow,
     verified,
+    // Which flow-band scale this route's numbers were rated on — the
+    // predicted baseline and the live feed aren't the same statistic, so a
+    // route card can't colour-code peakFlow correctly without knowing which
+    // one produced it. See services/routing.js's FLOW_BANDS_PREDICTED.
+    predicted,
     warnings: warningsFromBlocks(route.steps, maxFlow),
     steps: stepsFromBlocks(route.steps),
     via: viaFromBlocks(route.steps),
   }
+}
+
+// A refuge counts as "on this route" if it's within this distance of any
+// point on the drawn path.
+const REFUGE_MATCH_RADIUS_M = 200
+
+/**
+ * Refuges within REFUGE_MATCH_RADIUS_M of any vertex on the route's final,
+ * road-snapped path — checking against vertices rather than projecting onto
+ * each segment is a reasonable approximation here: matchToRoads()'s geometry
+ * already carries a vertex every few tens of metres, well under the match
+ * radius, so the two give the same answer in practice for much less code.
+ */
+function nearbyRefuges(route, allRefuges) {
+  if (!allRefuges?.length) return []
+  const nearby = []
+  for (const refuge of allRefuges) {
+    let closest = Infinity
+    for (const [lat, lng] of route.coordinates) {
+      const d = grid.haversineM(lat, lng, refuge.lat, refuge.lng)
+      if (d < closest) closest = d
+      if (closest <= REFUGE_MATCH_RADIUS_M) break
+    }
+    if (closest <= REFUGE_MATCH_RADIUS_M) nearby.push({ ...refuge, distanceM: Math.round(closest) })
+  }
+  return nearby.sort((a, b) => a.distanceM - b.distanceM)
 }
 
 function dedupeOverlapping(routes) {
@@ -188,15 +219,42 @@ export async function checkDatabaseHealth() {
   }
 }
 
-/** Feature 1 — live crowd levels from database or local heatmap engine. */
-export async function fetchLiveCrowd() {
+/**
+ * Feature 1 — live crowd levels from database or local heatmap engine.
+ *
+ * `when` is optional — a future Date (or anything `new Date()` accepts).
+ * When set, this returns the historical baseline for that weekday and hour
+ * instead of live/cached crowd data, for previewing what a planned walk will
+ * look like on the map rather than what it looks like right now. Predicted
+ * readings never touch `previousPoints` — that cache exists to compute the
+ * live rising/falling trend, and a predicted reading has no trend of its own.
+ */
+export async function fetchLiveCrowd({ when = null } = {}) {
+  if (when != null) {
+    const hm = await localApi.heatmap({ when })
+    const observedAt = new Date(when).toISOString()
+    const sensors = hm.data.points.map((p) => ({
+      id: `sensor-${p.id}`,
+      nodeId: grid.nearestNode(p.lat, p.lng),
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      count: p.density,
+      normalised: p.intensity ?? 0,
+      level: flowBand(p.density, true).id,
+      trend: 'steady',
+      updatedAt: observedAt,
+    }))
+    return { sensors, observedAt, live: false, source: 'predicted' }
+  }
+
   const data = await request('/crowd/live')
   if (data?.sensors) {
-    return { 
-      sensors: data.sensors, 
-      observedAt: data.observedAt ?? new Date().toISOString(), 
-      live: true, 
-      source: 'database' 
+    return {
+      sensors: data.sensors,
+      observedAt: data.observedAt ?? new Date().toISOString(),
+      live: true,
+      source: 'database'
     }
   }
 
@@ -277,8 +335,16 @@ export async function fetchRefuges() {
  * `maxFlow` is the user's comfort ceiling in people per minute, passed
  * straight through to the engine as its `tolerance` — no point on the
  * recommended route should exceed it.
+ *
+ * `when` is optional — a future Date (or anything `new Date()` accepts). When
+ * set, routes are scored against the historical baseline for that weekday
+ * and hour instead of live crowd data, for planning a walk ahead of time.
+ *
+ * `refuges` is optional — the full sensory-refuge list (see fetchRefuges()).
+ * When given, each returned route carries a `.refuges` array: the ones
+ * within REFUGE_MATCH_RADIUS_M of its final path, nearest first.
  */
-export async function planRoute({ origin, destination, maxFlow }) {
+export async function planRoute({ origin, destination, maxFlow, when = null, refuges = [] }) {
   if (!origin || !destination) return []
 
   // Both the real backend (server/lib/routing.js's plan()) and the local
@@ -287,13 +353,16 @@ export async function planRoute({ origin, destination, maxFlow }) {
   // {from,to,street,...}. UI formatting (toUiRoute, road-snapping, ranking)
   // applies identically either way, so the backend never needs to duplicate
   // that presentation logic.
-  const data = await request('/routes/plan', {
-    method: 'POST',
-    body: JSON.stringify({ origin, destination, maxFlow }),
-  })
+  const data = when
+    ? null // future planning is a local-only feature — no point round-tripping it
+    : await request('/routes/plan', {
+      method: 'POST',
+      body: JSON.stringify({ origin, destination, maxFlow }),
+    })
 
   let engineRoutes
   let assumedDensity
+  let predicted = false
   if (data?.routes?.length) {
     engineRoutes = data.routes
     assumedDensity = data.meta?.assumed_density ?? 0
@@ -304,6 +373,7 @@ export async function planRoute({ origin, destination, maxFlow }) {
         origin: { lat: origin.lat, lng: origin.lng },
         destination: { lat: destination.lat, lng: destination.lng },
         tolerance: maxFlow,
+        when,
       })
     } catch (error) {
       console.error('local routing engine failed', error)
@@ -311,10 +381,11 @@ export async function planRoute({ origin, destination, maxFlow }) {
     }
     engineRoutes = result.data.routes
     assumedDensity = result.meta.assumed_density
+    predicted = result.meta.source === 'predicted'
   }
 
   const endpoints = { origin, destination }
-  const routes = engineRoutes.map((r) => toUiRoute(r, endpoints, maxFlow, assumedDensity))
+  const routes = engineRoutes.map((r) => toUiRoute(r, endpoints, maxFlow, assumedDensity, predicted))
 
   await Promise.all(
     routes.map(async (route) => {
@@ -326,6 +397,10 @@ export async function planRoute({ origin, destination, maxFlow }) {
       if (matched.steps.length) route.steps = matched.steps
     }),
   )
+
+  // After road-matching, not before — refuge distances should reflect the
+  // path actually drawn on the map, not the raw grid geometry it started as.
+  for (const route of routes) route.refuges = nearbyRefuges(route, refuges)
 
   return rankRoutes(dedupeOverlapping(routes), maxFlow)
 }

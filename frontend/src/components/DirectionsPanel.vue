@@ -1,14 +1,18 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import PlaceInput from './PlaceInput.vue'
 import CrowdLimit from './CrowdLimit.vue'
+import CrowdLimitPresets from './CrowdLimitPresets.vue'
+import PlanForPicker from './PlanForPicker.vue'
 import RouteCard from './RouteCard.vue'
 import AppIcon from './AppIcon.vue'
+import { COMFORT_PRESETS, COMFORT_PRESETS_PREDICTED } from '@/services/routing.js'
 
 const props = defineProps({
   origin: { type: Object, default: null },
   destination: { type: Object, default: null },
   maxFlow: { type: Number, required: true },
+  planFor: { type: String, default: null },
   routes: { type: Array, default: () => [] },
   activeRouteId: { type: String, default: null },
   loading: { type: Boolean, default: false },
@@ -21,6 +25,7 @@ const emit = defineEmits([
   'update:origin',
   'update:destination',
   'update:maxFlow',
+  'update:planFor',
   'select-route',
   'swap',
   'close',
@@ -30,6 +35,9 @@ const emit = defineEmits([
 
 const originInput = ref(null)
 const destinationInput = ref(null)
+// "Now" defaults to the same quick Low/Moderate/High choice "Plan ahead"
+// uses; the exact-value slider is opt-in, tucked behind this toggle.
+const showAdvancedLimit = ref(false)
 
 const ready = computed(() => Boolean(props.origin && props.destination))
 
@@ -37,8 +45,19 @@ const sameEndpoints = computed(
   () => ready.value && props.origin.id === props.destination.id,
 )
 
+const planForLabel = computed(() => {
+  if (!props.planFor) return null
+  const d = new Date(props.planFor)
+  if (Number.isNaN(d.getTime())) return null
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' })
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return `${weekday} at ${time}`
+})
+
 /** Weather nudges the score, so say so rather than leaving it unexplained. */
 const weatherNote = computed(() => {
+  // Current conditions don't say anything about a future date, so stay quiet.
+  if (props.planFor) return null
   if (!props.weather) return null
   if (props.weather.rainChance > 0.5) return 'Rain likely — shelters get crowded'
   if (props.weather.temperatureC > 30) return 'Hot today — shaded routes preferred'
@@ -51,6 +70,44 @@ onMounted(() => {
   if (!props.origin) originInput.value?.focus()
   else if (!props.destination) destinationInput.value?.focus()
 })
+
+/**
+ * The presets only land on three exact values from ONE of two tables — live
+ * (30/100/150) or predicted (8/18/30), a completely different scale (see
+ * FLOW_BANDS_PREDICTED). Handing the presets a number that isn't one of
+ * their three values — because the slider left it in between, or because
+ * the OTHER table's numbers just became active — would leave the control
+ * with nothing selected, which reads as broken. Snap it into the table
+ * that's about to be shown, whenever either the table or the value changes.
+ */
+function snapToPreset() {
+  const table = props.planFor ? COMFORT_PRESETS_PREDICTED : COMFORT_PRESETS
+  if (table.some((p) => p.value === props.maxFlow)) return
+
+  // Prefer keeping the same TIER across tables — the user chose "Moderate",
+  // not literally "100" — and only fall back to the nearest raw number when
+  // the current value isn't a preset in either table (e.g. the advanced
+  // slider left it somewhere in between).
+  const otherTable = props.planFor ? COMFORT_PRESETS : COMFORT_PRESETS_PREDICTED
+  const matchedTier = otherTable.find((p) => p.value === props.maxFlow)
+  const target = matchedTier
+    ? table.find((p) => p.id === matchedTier.id)
+    : table.reduce((a, b) =>
+      Math.abs(b.value - props.maxFlow) < Math.abs(a.value - props.maxFlow) ? b : a,
+    )
+
+  emit('update:maxFlow', target.value)
+}
+
+// Fires on every "When" change, in both directions — switching TO Plan
+// ahead needs the predicted table's nearest value, and switching back to
+// Now needs the live table's, or the control shows nothing selected.
+watch(() => props.planFor, snapToPreset)
+
+function toggleAdvanced() {
+  showAdvancedLimit.value = !showAdvancedLimit.value
+  if (!showAdvancedLimit.value) snapToPreset()
+}
 </script>
 
 <template>
@@ -102,10 +159,31 @@ onMounted(() => {
     </div>
 
     <div class="directions__needs">
+      <PlanForPicker
+        :model-value="planFor"
+        @update:model-value="emit('update:planFor', $event)"
+      />
       <CrowdLimit
+        v-if="!planFor && showAdvancedLimit"
+        class="directions__limit"
         :model-value="maxFlow"
         @update:model-value="emit('update:maxFlow', $event)"
       />
+      <CrowdLimitPresets
+        v-else
+        class="directions__limit"
+        :model-value="maxFlow"
+        :predicted="!!planFor"
+        @update:model-value="emit('update:maxFlow', $event)"
+      />
+      <button
+        v-if="!planFor"
+        type="button"
+        class="directions__advanced-toggle"
+        @click="toggleAdvanced"
+      >
+        {{ showAdvancedLimit ? 'Use quick options' : 'Advanced: set an exact limit' }}
+      </button>
       <p v-if="weatherNote" class="directions__weather">
         <AppIcon name="info" :size="14" />
         {{ weatherNote }}
@@ -124,9 +202,16 @@ onMounted(() => {
 
       <div v-else-if="!hasPlanned && !loading" class="directions__find">
         <p class="directions__find-hint">
-          Ready when you are. Every option is checked against live crowd
-          numbers, and we recommend the fastest one that stays under your
-          limit.
+          <template v-if="planForLabel">
+            Ready when you are. Every option is estimated from typical crowd
+            patterns for {{ planForLabel }}, and we recommend the fastest one
+            that stays under your limit.
+          </template>
+          <template v-else>
+            Ready when you are. Every option is checked against live crowd
+            numbers, and we recommend the fastest one that stays under your
+            limit.
+          </template>
         </p>
         <button class="directions__find-btn" @click="emit('find-route')">
           <AppIcon name="route" :size="18" />
@@ -136,7 +221,7 @@ onMounted(() => {
 
       <p v-else-if="loading" class="directions__empty">
         <span class="directions__spinner" aria-hidden="true" />
-        Scoring routes against live crowd data…
+        {{ planForLabel ? 'Estimating routes from historical patterns…' : 'Scoring routes against live crowd data…' }}
       </p>
 
       <p v-else-if="!routes.length" class="directions__empty">
@@ -258,6 +343,23 @@ onMounted(() => {
   padding: 14px 16px;
   border-top: 1px solid var(--divider);
   background: var(--surface-sunken);
+}
+
+.directions__limit {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+}
+
+.directions__advanced-toggle {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.directions__advanced-toggle:hover {
+  text-decoration: underline;
 }
 
 .directions__weather {
