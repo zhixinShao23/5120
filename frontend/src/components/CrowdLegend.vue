@@ -1,17 +1,30 @@
 <script setup>
-import { FLOW_BANDS } from '@/services/routing.js'
+import { computed } from 'vue'
+import { FLOW_BANDS, FLOW_BANDS_PREDICTED } from '@/services/routing.js'
 
-/** Legend for the live crowd layer. Counts are people per minute past a sensor. */
-const LEVELS = FLOW_BANDS.map((band, i) => {
-  const floor = i === 0 ? null : FLOW_BANDS[i - 1].ceiling
-  const range = floor == null ? `< ${band.ceiling}` : band.ceiling === Infinity ? `> ${floor}` : `${floor}–${band.ceiling}`
-  return { label: band.label, range, colour: band.colour }
+const props = defineProps({
+  // Predicted markers are coloured off FLOW_BANDS_PREDICTED, a much smaller
+  // scale (see that table's own comment) — a legend still showing the live
+  // ranges here would flatly contradict the colours on the map.
+  predicted: { type: Boolean, default: false },
+})
+
+/** Legend for the crowd layer currently on screen. */
+const LEVELS = computed(() => {
+  const bands = props.predicted ? FLOW_BANDS_PREDICTED : FLOW_BANDS
+  return bands.map((band, i) => {
+    const floor = i === 0 ? null : bands[i - 1].ceiling
+    const range = floor == null ? `< ${band.ceiling}` : band.ceiling === Infinity ? `> ${floor}` : `${floor}–${band.ceiling}`
+    return { label: band.label, range, colour: band.colour }
+  })
 })
 </script>
 
 <template>
   <div class="legend card">
-    <p class="legend__title">Foot traffic (people/min)</p>
+    <p class="legend__title">
+      {{ predicted ? 'Predicted flow (people/min)' : 'Foot traffic (people/min)' }}
+    </p>
     <ul>
       <li v-for="level in LEVELS" :key="level.label">
         <span class="legend__swatch" :style="{ background: level.colour }" />

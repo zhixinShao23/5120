@@ -9,6 +9,7 @@
 
 import * as grid from './grid.js'
 import * as crowd from './crowd.js'
+import * as historical from './historical.js'
 import * as routing from './routing.js'
 
 // --------------------------------------------------------------------------
@@ -19,7 +20,7 @@ import * as routing from './routing.js'
 // slow and rude. One fetch serves every call for the cache window.
 // --------------------------------------------------------------------------
 
-const CACHE_SECONDS = 120
+const CACHE_SECONDS = 300
 
 const _cache = { loads: null, source: 'unknown', at: 0 }
 
@@ -64,14 +65,30 @@ export async function nodes() {
   return { data: { nodes: routing.nodeList() }, meta: { count: grid.NODES.size } }
 }
 
-/** Calm, quiet and fast routes between two points. `tolerance` is people/min. */
-export async function route({ origin, destination, tolerance = 80 }) {
-  const [loads, source, age] = await currentLoads()
+/**
+ * Calm, quiet and fast routes between two points. `tolerance` is people/min.
+ * `when` (a Date, or anything `new Date()` accepts) switches from live/cached
+ * crowd data to the historical baseline for that weekday and hour — for
+ * planning a walk ahead of time instead of right now.
+ */
+export async function route({ origin, destination, tolerance = 80, when = null }) {
+  let loads
+  let source
+  let age
+  if (when != null) {
+    loads = historical.loadsFor(new Date(when))
+    source = 'predicted'
+    age = 0
+  } else {
+    ;[loads, source, age] = await currentLoads()
+  }
+
   const originSpec = resolve(origin, 'origin')
   const destinationSpec = resolve(destination, 'destination')
 
   const result = routing.plan(originSpec, destinationSpec, tolerance, loads, source)
   result.meta.data_age_seconds = age
+  if (when != null) result.meta.predicted_for = new Date(when).toISOString()
 
   for (const [end, spec] of [['start', originSpec], ['end', destinationSpec]]) {
     const leg = result.data.access[end]
@@ -80,12 +97,26 @@ export async function route({ origin, destination, tolerance = 80 }) {
   return result
 }
 
-/** Current density at every reporting sensor. */
-export async function heatmap() {
-  const [loads, source, age] = await currentLoads()
-  const result = routing.heatmap(loads)
+/**
+ * Current density at every reporting sensor. `when` swaps in the historical
+ * baseline for that weekday and hour instead of live/cached crowd data.
+ */
+export async function heatmap({ when = null } = {}) {
+  let loads
+  let source
+  let age
+  if (when != null) {
+    loads = historical.loadsFor(new Date(when))
+    source = 'predicted'
+    age = 0
+  } else {
+    ;[loads, source, age] = await currentLoads()
+  }
+
+  const result = routing.heatmap(loads, source === 'predicted')
   result.meta.source = source
   result.meta.data_age_seconds = age
+  if (when != null) result.meta.predicted_for = new Date(when).toISOString()
   return result
 }
 

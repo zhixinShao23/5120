@@ -145,7 +145,7 @@ function lowestPeakPath(origin, destination, loads) {
 // Summarising a path
 // --------------------------------------------------------------------------
 
-function summarise(path, routeId, tolerance, loads) {
+function summarise(path, routeId, tolerance, loads, predicted) {
   const blockPairs = []
   for (let i = 0; i < path.length - 1; i++) blockPairs.push([path[i], path[i + 1]])
   const densities = blockPairs.map(([u, v]) => scoring.blockDensity(u, v, loads))
@@ -163,7 +163,7 @@ function summarise(path, routeId, tolerance, loads) {
     blocks: blockPairs.length,
     distance_m: Math.round(totalM),
     minutes: Math.round(totalM / WALK_M_PER_MIN),
-    rating: scoring.rate(peak),
+    rating: scoring.rate(peak, predicted),
     peak_density: peak,
     mean_density: measured.length ? Math.round(measured.reduce((a, b) => a + b, 0) / measured.length) : null,
     coverage_pct: blockPairs.length ? Math.round((100 * measured.length) / blockPairs.length) : 0,
@@ -173,7 +173,7 @@ function summarise(path, routeId, tolerance, loads) {
       street: grid.edgeStreet(u, v),
       length_m: grid.edgeLength(u, v),
       density: densities[i],
-      rating: scoring.rate(densities[i]),
+      rating: scoring.rate(densities[i], predicted),
       measured: densities[i] != null,
     })),
   }
@@ -223,6 +223,7 @@ function accessCost(metres, tolerance, loads) {
  * when no route exists.
  */
 export function plan(origin, destination, tolerance, loads, source = 'unknown') {
+  const predicted = source === 'predicted'
   for (const spec of [origin, destination]) {
     if (typeof spec === 'string' && !grid.NODES.has(spec)) {
       throw new Error(`unknown intersection: ${spec}`)
@@ -257,19 +258,19 @@ export function plan(origin, destination, tolerance, loads, source = 'unknown') 
   const fastPath = dijkstra(g, originNode, destNode, (d) => d.length)
   const quietPath = lowestPeakPath(originNode, destNode, loads)
 
-  const calm = summarise(calmPath, 'calm', tolerance, loads)
+  const calm = summarise(calmPath, 'calm', tolerance, loads, predicted)
   const routes = [calm]
   const seen = [calmPath]
 
   // Lowest-peak route: what the RATING actually measures, and often
   // different from the lowest-total route.
   if (quietPath && !seen.some((p) => samePath(p, quietPath))) {
-    routes.push(summarise(quietPath, 'quiet', tolerance, loads))
+    routes.push(summarise(quietPath, 'quiet', tolerance, loads, predicted))
     seen.push(quietPath)
   }
   // Only offer the fast route when it is genuinely a different option.
   if (!seen.some((p) => samePath(p, fastPath))) {
-    routes.push(summarise(fastPath, 'fast', tolerance, loads))
+    routes.push(summarise(fastPath, 'fast', tolerance, loads, predicted))
   }
 
   // Confidence degrades when much of the route is unmeasured or the crowd
@@ -292,7 +293,9 @@ export function plan(origin, destination, tolerance, loads, source = 'unknown') 
     meta: {
       source,
       confidence,
-      basis: `${cov}% of the calm route has live sensor coverage`,
+      basis: predicted
+        ? `${cov}% of the calm route has historical baseline coverage`
+        : `${cov}% of the calm route has live sensor coverage`,
       coverage_pct: cov,
       // What an unmeasured block is assumed to cost — the same number the
       // pathfinder itself used to price them. A route with 0% sensor
@@ -345,8 +348,14 @@ export function blocks(loads) {
   }
 }
 
-/** Current density at every reporting sensor, normalised for the client. */
-export function heatmap(loads) {
+/**
+ * Current density at every reporting sensor, normalised for the client.
+ * `predicted` swaps in the historical-baseline-calibrated scale for both
+ * `intensity` (marker size) and `rating` — otherwise every predicted sensor
+ * normalises to near-zero against the live ceiling and reads "low"
+ * regardless of how busy it actually is relative to other predicted hours.
+ */
+export function heatmap(loads, predicted = false) {
   const points = []
   for (const [sid, s] of grid.SENSORS) {
     const load = loads.get(sid)
@@ -358,8 +367,8 @@ export function heatmap(loads) {
       density: load.total,
       d1: load.d1,
       d2: load.d2,
-      intensity: scoring.normalise(load.total),
-      rating: scoring.rate(load.total),
+      intensity: scoring.normalise(load.total, predicted),
+      rating: scoring.rate(load.total, predicted),
       name: s.description,
     })
   }

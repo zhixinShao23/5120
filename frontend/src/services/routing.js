@@ -14,6 +14,15 @@
  */
 export const MAX_FLOW = 200
 
+/**
+ * The predicted-mode equivalent of MAX_FLOW. The historical baseline reports
+ * an HOURLY AVERAGE per-minute rate (see engine/historical.js), which tops
+ * out around 71 across the entire dataset — nothing like the live feed's
+ * instantaneous per-minute spikes, which reach into the hundreds. Scaled the
+ * same way MAX_FLOW sits above the live "packed" ceiling (200 vs 150).
+ */
+export const MAX_FLOW_PREDICTED = 40
+
 export const DEFAULT_MAX_FLOW = 100
 
 export const WALK_SPEED_MPS = 1.35 // ~4.9 km/h, an unhurried pace
@@ -39,10 +48,52 @@ export const FLOW_BANDS = [
   { id: 'packed', label: 'Very busy', colour: '#d93025', ceiling: Infinity },
 ]
 
-/** Colour band for a people-per-minute figure. */
-export function flowBand(flow) {
-  return FLOW_BANDS.find((band) => flow < band.ceiling) ?? FLOW_BANDS[FLOW_BANDS.length - 1]
+/**
+ * Predicted-mode bands. The historical baseline reports an HOURLY AVERAGE
+ * per-minute rate (see engine/historical.js) — a burst that spikes the live
+ * feed to 200+ for one minute spreads out to single digits once averaged
+ * across the hour. Measured against this dataset's own distribution
+ * (percentiles: p50=2.5, p75=7.9, p90=17.7, p95=26.7, p99=44.2, max=70.8),
+ * so a predicted hour that's busy RELATIVE TO OTHER PREDICTED HOURS still
+ * reads as busy, instead of everything reading "quiet" under the live scale.
+ */
+export const FLOW_BANDS_PREDICTED = [
+  { id: 'quiet', label: 'Quiet', colour: '#12805c', ceiling: 8 },
+  { id: 'moderate', label: 'Moderate', colour: '#b8860b', ceiling: 18 },
+  { id: 'busy', label: 'Busy', colour: '#e8710a', ceiling: 30 },
+  { id: 'packed', label: 'Very busy', colour: '#d93025', ceiling: Infinity },
+]
+
+/**
+ * Colour band for a people-per-minute figure. `predicted` swaps in the
+ * historical-baseline-calibrated bands — pass it whenever the figure came
+ * from the "plan ahead" baseline rather than the live/cached feed.
+ */
+export function flowBand(flow, predicted = false) {
+  const bands = predicted ? FLOW_BANDS_PREDICTED : FLOW_BANDS
+  return bands.find((band) => flow < band.ceiling) ?? bands[bands.length - 1]
 }
+
+/**
+ * The three quick comfort choices, derived from a band table rather than
+ * restated — each preset simply IS a band, so "Low" means "keep me inside
+ * the quiet band" and carries that band's own ceiling and colour. Defining
+ * them any other way would let the picker drift out of step with the map
+ * legend and the route cards, which read straight from the same tables.
+ */
+function buildComfortPresets(bands) {
+  return [
+    { id: 'low', label: 'Low', bandId: 'quiet', icon: 'person' },
+    { id: 'moderate', label: 'Moderate', bandId: 'moderate', icon: 'people' },
+    { id: 'high', label: 'High', bandId: 'busy', icon: 'crowd' },
+  ].map(({ id, label, bandId, icon }) => {
+    const band = bands.find((b) => b.id === bandId)
+    return { id, label, icon, value: band.ceiling, colour: band.colour }
+  })
+}
+
+export const COMFORT_PRESETS = buildComfortPresets(FLOW_BANDS)
+export const COMFORT_PRESETS_PREDICTED = buildComfortPresets(FLOW_BANDS_PREDICTED)
 
 /**
  * Coarse band for a 0-100 sensory score. Used by the landmarks list, whose

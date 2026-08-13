@@ -26,6 +26,15 @@ const ORDER_BY = 'sensing_datetime desc'
 const MAX_PAGES = 30
 const STOP_AFTER_STALE_PAGES = 3
 
+// Fetching up to MAX_PAGES pages back-to-back with no gap is a burst
+// Opendatasoft's per-IP rate limit doesn't tolerate — this is what was
+// actually producing the repeating "429 Too Many Requests" fallbacks, not
+// request volume from the frontend (that's already covered by the 60s
+// cache in index.js's loadLiveCrowd(), which this pagination sits inside).
+const PAGE_DELAY_MS = 150
+const RETRY_429_DELAY_MS = 1000
+const MAX_429_RETRIES = 2
+
 // The portal has renamed fields between exports; resolve by alias, first match wins.
 const ALIASES = {
   location_id: ['location_id', 'sensor_id', 'locationid', 'sensorid'],
@@ -35,15 +44,49 @@ const ALIASES = {
   total_of_directions: ['total_of_directions', 'total_of_direction', 'totalofdirections', 'total'],
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Opendatasoft's code for "the anonymous *daily* call quota is used up" —
+// distinct from ordinary per-second throttling, which also answers 429 but
+// without this code. A day-quota rejection can't be fixed by backing off a
+// few seconds and trying again, so it must not be retried like one.
+const QUOTA_EXCEEDED_CODE = 10005
+
 async function fetchWithTimeout(url, ms) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ms)
   try {
     const response = await fetch(url, { signal: controller.signal })
-    if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+    if (!response.ok) {
+      const err = new Error(`${response.status} ${response.statusText}`)
+      err.status = response.status
+      if (response.status === 429) {
+        err.errorcode = await response.json().then((b) => b.errorcode, () => undefined)
+      }
+      throw err
+    }
     return await response.json()
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/** As fetchWithTimeout, but a 429 gets a couple of backed-off retries before
+ *  giving up — the inter-page delay below should prevent these outright, but
+ *  a shared rate limit (other traffic against the same dataset, a bucket
+ *  that hadn't fully drained) can still produce one. Quota-exhaustion 429s
+ *  are excluded: no amount of backoff makes the day's quota come back. */
+async function fetchPageWithRetry(url, ms) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchWithTimeout(url, ms)
+    } catch (e) {
+      const retryable = e.status === 429 && e.errorcode !== QUOTA_EXCEEDED_CODE
+      if (!retryable || attempt >= MAX_429_RETRIES) throw e
+      await sleep(RETRY_429_DELAY_MS * (attempt + 1))
+    }
   }
 }
 
@@ -54,12 +97,14 @@ async function fetchPastHour() {
   let stale = 0
 
   for (let page = 0; page < MAX_PAGES; page++) {
+    if (page > 0) await sleep(PAGE_DELAY_MS)
+
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       offset: String(page * PAGE_SIZE),
       order_by: ORDER_BY,
     })
-    const data = await fetchWithTimeout(`${BASE_URL}?${params}`, TIMEOUT_MS)
+    const data = await fetchPageWithRetry(`${BASE_URL}?${params}`, TIMEOUT_MS)
     const batch = data.results ?? []
     if (batch.length === 0) break
 

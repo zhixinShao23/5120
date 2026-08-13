@@ -6,9 +6,9 @@ import SearchBar from '../components/SearchBar.vue'
 import DirectionsPanel from '../components/DirectionsPanel.vue'
 import LandmarksPanel from '../components/LandmarksPanel.vue'
 import LiveStatusCard from '../components/LiveStatusCard.vue'
+import NearbyRefugesPanel from '../components/NearbyRefugesPanel.vue'
 import CategoryChips from '../components/CategoryChips.vue'
 import AlertBanner from '../components/AlertBanner.vue'
-import CrowdLegend from '../components/CrowdLegend.vue'
 import {
   fetchLiveCrowd,
   fetchWeather,
@@ -16,7 +16,6 @@ import {
   fetchRefuges,
   planRoute,
   describeTap,
-  connection,
 } from '../services/api.js'
 import { DEFAULT_MAX_FLOW } from '../services/routing.js'
 
@@ -33,6 +32,9 @@ const origin = ref(null)
 const destination = ref(null)
 // The user's comfort ceiling: max people per minute anywhere on the route.
 const maxFlow = ref(DEFAULT_MAX_FLOW)
+// null = plan against live crowd data now. Otherwise a datetime-local string
+// naming a future weekday/hour to predict from the historical baseline.
+const planFor = ref(null)
 
 const routes = ref([])
 const activeRouteId = ref(null)
@@ -46,7 +48,16 @@ const planning = ref(false)
 const hasPlanned = ref(false)
 
 const sensors = ref([])
+// The DATA's own recency — a real backend echoes the sensor reading's own
+// timestamp here, which can be older than "just now" for a stale/cached
+// reading (see Iteration 8 in docs/ITERATIONS.md: an honest stale reading
+// beats a fresh-looking timestamp on data that wasn't). Deliberately NOT the
+// same thing as "when did the client last call the API" — see lastFetchedAt.
 const observedAt = ref(null)
+// When THIS browser last completed a fetchLiveCrowd() call, regardless of
+// whether the data it got back had actually changed. This is what confirms
+// the reload button did something, which observedAt alone can't.
+const lastFetchedAt = ref(null)
 const isLive = ref(false)
 const weather = ref(null)
 const landmarks = ref([])
@@ -61,9 +72,6 @@ const layers = reactive({
   crowd: true,
   landmarks: false,
   quiet: false,
-  transport: false,
-  toilets: false,
-  shade: false,
 })
 
 const searchBar = ref(null)
@@ -79,15 +87,50 @@ const showLandmarkPins = computed(
   () => layers.landmarks || layers.quiet || mode.value === 'landmarks',
 )
 
+// The route the user has actually picked, not just whatever's recommended —
+// nothing is auto-selected, so this is null until they tap a card.
+const activeRoute = computed(() => routes.value.find((r) => r.id === activeRouteId.value) ?? null)
+
+/** "Monday at 5:00 PM", or null when planning against live data. */
+const predictedLabel = computed(() => {
+  if (!planFor.value) return null
+  const d = new Date(planFor.value)
+  if (Number.isNaN(d.getTime())) return null
+  const weekday = d.toLocaleDateString(undefined, { weekday: 'long' })
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  return `${weekday} at ${time}`
+})
+
 // --- Data loading ----------------------------------------------------------
 
 let pollTimer = null
+// Drives the spinner on LiveStatusCard's reload button — distinct from the
+// silent 15-second poll, which shouldn't spin anything on screen.
+const refreshing = ref(false)
 
 async function refreshCrowd() {
-  const data = await fetchLiveCrowd()
+  const data = await fetchLiveCrowd({ when: planFor.value })
   sensors.value = data.sensors
   observedAt.value = data.observedAt
-  isLive.value = connection.live
+  lastFetchedAt.value = new Date().toISOString()
+  // `data.live` (not `connection.live`) — the latter only tracks whether the
+  // last real backend attempt succeeded, and says nothing about a predicted
+  // fetch, which never makes that attempt at all.
+  isLive.value = data.live
+}
+
+/** The reload button: fetch now, and push the next silent poll back so it
+ *  doesn't fire again a few seconds later. */
+async function manualRefreshCrowd() {
+  if (refreshing.value) return
+  refreshing.value = true
+  try {
+    await refreshCrowd()
+  } finally {
+    refreshing.value = false
+  }
+  clearInterval(pollTimer)
+  pollTimer = setInterval(refreshCrowd, POLL_INTERVAL_MS)
 }
 
 /** Reconstructs a place object handed off from the homepage's search fields. */
@@ -155,6 +198,8 @@ async function replan({ silent = false } = {}) {
       origin: origin.value,
       destination: destination.value,
       maxFlow: maxFlow.value,
+      when: planFor.value,
+      refuges: refuges.value,
       sensors: sensors.value,
     })
 
@@ -164,11 +209,13 @@ async function replan({ silent = false } = {}) {
 
     routes.value = result
 
-    // A route the user picked by hand survives replans while it exists;
-    // otherwise the highlight follows the recommendation.
-    const stillThere = result.some((r) => r.id === activeRouteId.value)
-    if (!userPickedRoute.value || !stillThere) {
-      activeRouteId.value = result.find((r) => r.recommended)?.id ?? result[0]?.id ?? null
+    // Nothing is auto-selected — the user picks a route themselves. A route
+    // they already picked by hand survives replans while it's still on
+    // offer; if it drops out (say, a live re-score removed it), fall back to
+    // no selection rather than silently substituting the recommendation.
+    if (!result.some((r) => r.id === activeRouteId.value)) {
+      activeRouteId.value = null
+      userPickedRoute.value = false
     }
   } catch (error) {
     // A planning failure must never leave the panel spinning forever.
@@ -201,6 +248,13 @@ watch(maxFlow, () => {
   if (hasPlanned.value) replan()
 })
 
+// Switching between "now" and a future date/time swaps the crowd layer on
+// the map to that time's baseline, and re-scores the journey against it.
+watch(planFor, () => {
+  refreshCrowd()
+  if (hasPlanned.value) replan()
+})
+
 function findRoute() {
   replan()
 }
@@ -211,7 +265,9 @@ function findRoute() {
  * silently swapping the line on the map.
  */
 watch(sensors, async () => {
-  if (!routes.value.length) return
+  // Predicted routes come from the historical baseline, not the live feed —
+  // a sensor poll has nothing new to tell them.
+  if (!routes.value.length || planFor.value) return
 
   const previousId = activeRouteId.value
   const wasUnder = routes.value.find((r) => r.id === previousId)?.underLimit ?? true
@@ -294,9 +350,26 @@ function focusLandmark(landmark) {
   focus.value = { lat: landmark.lat, lng: landmark.lng, zoom: 17 }
 }
 
+function focusRefuge(refuge) {
+  focus.value = { lat: refuge.lat, lng: refuge.lng, zoom: 17 }
+}
+
 function routeToLandmark(landmark) {
   destination.value = { id: landmark.id, name: landmark.name, lat: landmark.lat, lng: landmark.lng }
   mode.value = 'directions'
+}
+
+/**
+ * "Quick directions" from a refuge card: swap it in as the new destination
+ * from the SAME origin and replan immediately — unlike routeToLandmark(),
+ * which lands on "ready to search" instead. The difference is deliberate:
+ * this button only ever appears mid-trip, with a live origin already set, so
+ * making it a genuine one-click shortcut is what "quick" means here.
+ */
+async function routeToRefuge(refuge) {
+  destination.value = { id: refuge.id, name: refuge.name, lat: refuge.lat, lng: refuge.lng }
+  await nextTick()
+  replan()
 }
 
 function chooseRoute(id) {
@@ -318,9 +391,11 @@ function applyAlert() {
       :active-route-id="activeRouteId"
       :landmarks="visibleLandmarks"
       :refuges="refuges"
+      :nearby-refuges="activeRoute?.refuges ?? []"
       :origin="origin"
       :destination="destination"
       :show-crowd="layers.crowd"
+      :predicted="!!planFor"
       :show-landmarks="showLandmarkPins"
       :show-refuges="layers.quiet"
       :focus="focus"
@@ -350,8 +425,12 @@ function applyAlert() {
           :sensors="sensors"
           :weather="weather"
           :observed-at="observedAt"
+          :last-fetched-at="lastFetchedAt"
           :live="isLive"
+          :predicted-label="predictedLabel"
+          :refreshing="refreshing"
           @open-detail="layers.crowd = true"
+          @refresh="manualRefreshCrowd"
         />
 
         <DirectionsPanel
@@ -359,6 +438,7 @@ function applyAlert() {
           v-model:origin="origin"
           v-model:destination="destination"
           v-model:max-flow="maxFlow"
+          v-model:plan-for="planFor"
           :routes="routes"
           :active-route-id="activeRouteId"
           :loading="planning"
@@ -394,7 +474,13 @@ function applyAlert() {
         />
       </div>
 
-      <CrowdLegend v-if="layers.crowd" class="hud__legend" />
+      <NearbyRefugesPanel
+        v-if="mode === 'directions' && activeRoute"
+        class="hud__refuges"
+        :refuges="activeRoute.refuges"
+        @route-to="routeToRefuge"
+        @focus-refuge="focusRefuge"
+      />
     </div>
   </div>
 </template>
@@ -447,10 +533,13 @@ function applyAlert() {
   transform: translateX(-50%);
 }
 
-.hud__legend {
+/* Same top-right slot the crowd legend used to occupy — clear of the chips
+   row above it (.hud__top) and the map's own zoom/locate controls, which
+   live at the bottom-right instead (see MapView.vue's .map__controls). */
+.hud__refuges {
   position: absolute;
-  right: 12px;
   top: 64px;
+  right: 12px;
 }
 
 @media (max-width: 900px) {
@@ -469,7 +558,10 @@ function applyAlert() {
     bottom: 68px;
   }
 
-  .hud__legend {
+  /* .hud__left becomes full-width at this breakpoint (see above), which
+     would sit directly under a top-right panel — same trade-off the crowd
+     legend made in this spot before it. */
+  .hud__refuges {
     display: none;
   }
 

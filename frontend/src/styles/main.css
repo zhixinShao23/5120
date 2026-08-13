@@ -194,6 +194,42 @@ input {
   background: var(--hover-strong);
 }
 
+/* One-of-N picker. Every such control in the app shares this shape — a
+   single sunken track with the choice raised out of it — so two pickers
+   sitting next to each other read as siblings rather than as unrelated
+   widgets that happen to do the same job. */
+.segmented {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+}
+
+.segmented__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex: 1;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.segmented__btn:hover:not(.is-active) {
+  color: var(--text);
+}
+
+.segmented__btn.is-active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.2);
+}
+
 /* --- Leaflet overrides so the basemap reads like the reference ----------- */
 
 .leaflet-container {
@@ -283,6 +319,16 @@ input {
   background: var(--calm);
   border: 2px solid #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Refuges near the selected route — bigger, heavier-bordered, and a
+   distinct vibrant blue (rather than the general layer's --calm green) so
+   they read as "relevant to this route" rather than just more of the
+   plainer city-wide layer above. */
+.refuge-marker--nearby {
+  background: #1a73e8;
+  border-width: 3px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* --- Scrollbars ---------------------------------------------------------- */

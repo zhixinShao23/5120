@@ -63,9 +63,15 @@ export function invalidateGridState() {
 // --------------------------------------------------------------------------
 
 // Re-fetching the external feed on every request would hammer it under
-// concurrent traffic (the frontend polls every 15s per visitor) — cache
-// briefly and share one fetch across requests in that window.
-const LIVE_CACHE_MS = 60_000
+// concurrent traffic (the frontend polls every 15s per visitor) — cache and
+// share one fetch across requests in that window. 5 minutes, not 60s: the
+// upstream feed itself only refreshes every ~15 minutes (see crowd.js's file
+// header), and Opendatasoft's anonymous quota is a hard 5000 requests/day —
+// at 60s a normal day of traffic alone (1440 refreshes × ~5 paginated
+// requests each) already exceeds that before any dev-mode restart or retry
+// makes it worse. 5 minutes keeps requests/day comfortably under the cap
+// (~1440/day) while still tracking data that rarely changes faster anyway.
+const LIVE_CACHE_MS = 5 * 60_000
 let liveCache = { loads: null, prevLoads: null, newest: null, fetchedAt: 0 }
 
 async function loadLiveCrowd() {

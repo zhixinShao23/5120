@@ -26,6 +26,14 @@ const ORDER_BY = 'sensing_datetime desc'
 const MAX_PAGES = 30 // hard stop: 3000 records
 const STOP_AFTER_STALE_PAGES = 3
 
+// Fetching up to MAX_PAGES pages back-to-back with no gap is a burst
+// Opendatasoft's per-IP rate limit doesn't tolerate — this is what actually
+// produces a repeating 429-then-fallback-to-snapshot pattern, not request
+// volume (there's only ever one browser behind this call).
+const PAGE_DELAY_MS = 150
+const RETRY_429_DELAY_MS = 1000
+const MAX_429_RETRIES = 2
+
 const SNAPSHOT_URL = '/data/snapshot.csv'
 
 // The portal has renamed fields between exports; resolve by alias, first match wins.
@@ -72,6 +80,10 @@ export async function getAllLoads() {
 // Fetch
 // --------------------------------------------------------------------------
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function fetchWithTimeout(url, ms) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ms)
@@ -84,6 +96,20 @@ async function fetchWithTimeout(url, ms) {
   }
 }
 
+/** As fetchWithTimeout, but a 429 gets a couple of backed-off retries before
+ *  giving up — the inter-page delay below should prevent these outright, but
+ *  a shared rate limit can still produce one. */
+async function fetchPageWithRetry(url, ms) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fetchWithTimeout(url, ms)
+    } catch (e) {
+      if (!e.message.startsWith('429') || attempt >= MAX_429_RETRIES) throw e
+      await sleep(RETRY_429_DELAY_MS * (attempt + 1))
+    }
+  }
+}
+
 /** Fetch the most recent records, newest first, until every sensor's latest reading is seen. */
 async function fetchPastHour() {
   const rows = []
@@ -91,12 +117,14 @@ async function fetchPastHour() {
   let stale = 0
 
   for (let page = 0; page < MAX_PAGES; page++) {
+    if (page > 0) await sleep(PAGE_DELAY_MS)
+
     const params = new URLSearchParams({
       limit: String(PAGE_SIZE),
       offset: String(page * PAGE_SIZE),
       order_by: ORDER_BY,
     })
-    const data = await fetchWithTimeout(`${BASE_URL}?${params}`, TIMEOUT_MS)
+    const data = await fetchPageWithRetry(`${BASE_URL}?${params}`, TIMEOUT_MS)
     const batch = (data.results ?? []).map((r) => r)
     if (batch.length === 0) break
 
